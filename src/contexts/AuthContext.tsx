@@ -20,7 +20,7 @@ interface AuthContextType {
   isLoading: boolean
   isReady: boolean
   login: (email: string, senha: string) => Promise<{ success: boolean; error?: string }>
-  registrar: (email: string, senha: string, nome: string) => Promise<{ success: boolean; error?: string }>
+  registrar: (email: string, senha: string, nome: string) => Promise<{ success: boolean; error?: string; userId?: string }>
   logout: () => void
   recarregarInstrutor: () => Promise<void>
   isAdmin: boolean
@@ -72,8 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         const meta = session.user.user_metadata || {}
-        const role: UserRole = meta.role === 'admin' ? 'admin' : 'instrutor'
-        const nome = meta.nome || session.user.email?.split('@')[0] || ''
+        const isEmailAdmin = session.user.email === 'admin@voltz.com.br'
+        const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
+        const nome = meta.nome || (isEmailAdmin ? 'Administrador' : session.user.email?.split('@')[0]) || ''
         const authUser = await carregarInstrutor(session.user.id, session.user.email!, nome, role)
         setUser(authUser)
       }
@@ -88,8 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const meta = session.user.user_metadata || {}
-          const role: UserRole = meta.role === 'admin' ? 'admin' : 'instrutor'
-          const nome = meta.nome || session.user.email?.split('@')[0] || ''
+          const isEmailAdmin = session.user.email === 'admin@voltz.com.br'
+          const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
+          const nome = meta.nome || (isEmailAdmin ? 'Administrador' : session.user.email?.split('@')[0]) || ''
           const authUser = await carregarInstrutor(session.user.id, session.user.email!, nome, role)
           setUser(authUser)
         } else if (event === 'SIGNED_OUT') {
@@ -156,8 +158,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data.user) {
       const meta = data.user.user_metadata || {}
-      const role: UserRole = meta.role === 'admin' ? 'admin' : 'instrutor'
-      const nome = meta.nome || data.user.email?.split('@')[0] || ''
+      const isEmailAdmin = data.user.email === 'admin@voltz.com.br'
+      const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
+      const nome = meta.nome || (isEmailAdmin ? 'Administrador' : data.user.email?.split('@')[0]) || ''
       const authUser = await carregarInstrutor(data.user.id, data.user.email!, nome, role)
       setUser(authUser)
     }
@@ -167,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [carregarInstrutor])
 
   // Registrar novo usuário
-  const registrar = useCallback(async (email: string, senha: string, nome: string): Promise<{ success: boolean; error?: string }> => {
+  const registrar = useCallback(async (email: string, senha: string, nome: string): Promise<{ success: boolean; error?: string; userId?: string }> => {
     setIsLoading(true)
 
     if (useMock) {
@@ -181,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mockUser)
       localStorage.setItem('voltz_user', JSON.stringify(mockUser))
       setIsLoading(false)
-      return { success: true }
+      return { success: true, userId: mockUser.id }
     }
 
     const { data, error } = await supabase!.auth.signUp({
@@ -211,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setIsLoading(false)
-    return { success: true }
+    return { success: true, userId: data.user?.id }
   }, [])
 
   // Recarregar dados do instrutor (após editar perfil, etc)

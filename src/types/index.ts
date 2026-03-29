@@ -48,6 +48,8 @@ export interface Instrutor {
   disponibilidades: Disponibilidade[]
   veiculos: Veiculo[]
   avaliacoes: Avaliacao[]
+  contatos: Contato[]
+  visualizacoes: number
 }
 
 export interface Localizacao {

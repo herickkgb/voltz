@@ -12,18 +12,19 @@ export { getMediaAvaliacao }
 function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
   const loc = row.localizacoes as Record<string, unknown> | Record<string, unknown>[] | null
   const locData = Array.isArray(loc) ? loc[0] : loc
+  const privados = Array.isArray(row.instrutores_dados_privados) ? row.instrutores_dados_privados[0] : (row.instrutores_dados_privados || {}) as any
 
   return {
     id: row.id as string,
     user_id: row.user_id as string | undefined,
     nome: row.nome as string,
-    cpf: row.cpf as string,
-    cnpj: (row.cnpj as string) || undefined,
-    data_nascimento: row.data_nascimento as string,
-    email: row.email as string,
-    telefone: row.telefone as string,
+    cpf: (row.cpf as string) || privados.cpf || '',
+    cnpj: (row.cnpj as string) || privados.cnpj || undefined,
+    data_nascimento: (row.data_nascimento as string) || privados.data_nascimento || '',
+    email: (row.email as string) || privados.email || '',
+    telefone: (row.telefone as string) || privados.telefone || '',
     foto_url: row.foto_url as string,
-    registro_senatran: row.registro_senatran as string,
+    registro_senatran: (row.registro_senatran as string) || privados.registro_senatran || '',
     categorias: row.categorias as string[],
     anos_experiencia: row.anos_experiencia as number,
     alunos_formados: row.alunos_formados as number,
@@ -81,16 +82,29 @@ function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
       url: d.url as string,
       uploaded_at: (d.enviado_em as string) || (d.uploaded_at as string),
     })),
+    visualizacoes: (row.visualizacoes as number) || 0,
+    contatos: ((row.contatos as Record<string, unknown>[]) || []).map(c => ({
+      id: c.id as string,
+      instrutor_id: c.instrutor_id as string,
+      nome: c.nome as string,
+      telefone: c.telefone as string,
+      email: (c.email as string) || undefined,
+      mensagem: c.mensagem as string,
+      lido: c.lido as boolean,
+      created_at: (c.criado_em as string) || (c.created_at as string),
+    })),
   }
 }
 
 const INSTRUTOR_SELECT = `
   *,
+  instrutores_dados_privados(*),
   localizacoes(*),
   veiculos(*),
   disponibilidades(*),
   avaliacoes(*),
-  documentos(*)
+  documentos(*),
+  contatos(*)
 `
 
 // ============================================
@@ -276,6 +290,10 @@ export async function getInstrutorPorUserId(userId: string): Promise<Instrutor |
     .eq('user_id', userId)
     .single()
 
+  if (error) {
+    console.error('ERRO FATAL EM getInstrutorPorUserId:', error)
+  }
+
   if (error || !data) return null
 
   return mapInstrutorFromDB(data)
@@ -293,13 +311,37 @@ export async function atualizarPerfilInstrutor(
 ): Promise<boolean> {
   if (useMock) return true
 
+  const { telefone, ...resto } = dados
   const { error } = await supabase!
     .from('instrutores')
-    .update({ ...dados, status: 'em_analise' })
+    .update({ ...resto, status: 'em_analise' })
     .eq('id', id)
 
   if (error) {
     console.error('Erro ao atualizar perfil:', error)
+    return false
+  }
+
+  if (telefone) {
+    await supabase!
+      .from('instrutores_dados_privados')
+      .update({ telefone })
+      .eq('instrutor_id', id)
+  }
+
+  return true
+}
+
+export async function atualizarFotoPerfil(id: string, foto_url: string): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('instrutores')
+    .update({ foto_url })
+    .eq('id', id)
+
+  if (error) {
+    console.error('Erro ao atualizar foto:', error)
     return false
   }
   return true
@@ -348,11 +390,13 @@ export async function criarInstrutor(
 ): Promise<{ id: string } | null> {
   if (useMock) return { id: 'mock-new' }
 
+  const { cpf, cnpj, data_nascimento, telefone, email, registro_senatran, ...publicDados } = dados
+
   const { data, error } = await supabase!
     .from('instrutores')
     .insert({
       user_id: userId,
-      ...dados,
+      ...publicDados,
       status: 'em_analise',
       plano: 'basico',
     })
@@ -362,6 +406,20 @@ export async function criarInstrutor(
   if (error) {
     console.error('Erro ao criar instrutor:', error)
     return null
+  }
+
+  if (data) {
+    await supabase!
+      .from('instrutores_dados_privados')
+      .insert({
+        instrutor_id: data.id,
+        cpf,
+        cnpj,
+        data_nascimento,
+        telefone,
+        email,
+        registro_senatran,
+      })
   }
 
   return data
@@ -415,6 +473,36 @@ export async function criarDocumento(
     console.error('Erro ao criar documento:', error)
     return false
   }
+  return true
+}
+
+export async function atualizarDocumento(
+  docId: string,
+  dados: { nome_arquivo: string; url: string }
+): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('documentos')
+    .update({ ...dados, enviado_em: new Date().toISOString() })
+    .eq('id', docId)
+
+  if (error) {
+    console.error('Erro ao atualizar documento:', error)
+    return false
+  }
+  return true
+}
+
+export async function solicitarNovaAnalise(id: string): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('instrutores')
+    .update({ status: 'em_analise', motivo_recusa: null })
+    .eq('id', id)
+
+  if (error) return false
   return true
 }
 

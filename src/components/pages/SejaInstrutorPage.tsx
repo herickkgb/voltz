@@ -211,7 +211,7 @@ export default function SejaInstrutorPageClient() {
     try {
       // 1. Registrar usuário (Supabase Auth)
       const resultado = await registrar(email, senha, nome)
-      if (!resultado.success) {
+      if (!resultado.success || !resultado.userId) {
         toast.error(resultado.error || 'Erro ao criar conta. Verifique seus dados.')
         setLoading(false)
         return
@@ -226,7 +226,7 @@ export default function SejaInstrutorPageClient() {
         + '-' + Date.now().toString(36)
 
       // 2. Criar perfil do instrutor
-      const instrutor = await criarInstrutor(resultado.success ? email : '', {
+      const instrutor = await criarInstrutor(resultado.userId, {
         nome,
         cpf: cpf.replace(/\D/g, ''),
         cnpj: tipoPessoa === 'cnpj' ? cnpj.replace(/\D/g, '') : undefined,
@@ -270,7 +270,7 @@ export default function SejaInstrutorPageClient() {
       let docsComErro = 0
       for (const doc of documentos) {
         if (doc.arquivo) {
-          const uploadResult = await uploadDocumento(instrutor.id, doc.arquivo, doc.tipo)
+          const uploadResult = await uploadDocumento(resultado.userId, doc.arquivo, doc.tipo)
           if (uploadResult) {
             const docOk = await criarDocumento(instrutor.id, {
               tipo: doc.tipo,

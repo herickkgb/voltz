@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { useAuth } from '@/contexts/AuthContext'
-import { atualizarPerfilInstrutor, atualizarLocalizacao } from '@/lib/db'
+import { atualizarPerfilInstrutor, atualizarLocalizacao, atualizarFotoPerfil, solicitarNovaAnalise, atualizarDocumento } from '@/lib/db'
+import { uploadFoto, uploadDocumento } from '@/lib/storage'
 import { telefoneMask, cepMask } from '@/lib/validations'
 import { toast } from 'sonner'
 import { useViaCep } from '@/hooks/useViaCep'
@@ -34,54 +35,25 @@ import {
   Headphones,
   Plus,
   Trash2,
+  Camera,
 } from 'lucide-react'
 
 const planos: { tipo: PlanoTipo; nome: string; preco: number; recursos: string[]; destaque: boolean }[] = [
   {
-    tipo: 'basico',
-    nome: 'Básico',
-    preco: 29.90,
+    tipo: 'premium',
+    nome: 'Plano Voltz Completo',
+    preco: 49.90,
     recursos: [
-      'Perfil na plataforma',
-      'Aparecer nas buscas',
-      'Receber contatos de alunos',
-      'Selo "Verificado" no perfil',
-      'Até 10 fotos no perfil',
-      'Estatísticas de visualização',
-    ],
-    destaque: false,
-  },
-  {
-    tipo: 'profissional',
-    nome: 'Profissional',
-    preco: 59.90,
-    recursos: [
-      'Tudo do plano Básico',
-      'Destaque em todas as buscas',
-      'Perfil aparece em primeiro',
-      'Selo "Profissional" exclusivo',
-      'Até 20 fotos + vídeo',
-      'Relatório mensal de desempenho',
-      'Suporte prioritário',
+      'Acesso total à plataforma',
+      'Perfil aprovado e nas buscas',
+      'Receber contatos ilimitados de alunos',
+      'Selo "Verificado" de Instrutor',
+      'Cadastro de veículos e fotos',
+      'Estatísticas e contatos no painel',
+      'Suporte direto da equipe',
     ],
     destaque: true,
-  },
-  {
-    tipo: 'premium',
-    nome: 'Premium',
-    preco: 99.90,
-    recursos: [
-      'Tudo do plano Profissional',
-      'Destaque máximo (topo das buscas)',
-      'Selo "Premium" dourado',
-      'Fotos e vídeos ilimitados',
-      'Link na página inicial',
-      'Relatórios semanais detalhados',
-      'Suporte VIP via WhatsApp',
-      'Perfil promovido em redes sociais',
-    ],
-    destaque: false,
-  },
+  }
 ]
 
 const statusConfig = {
@@ -275,11 +247,33 @@ export default function PainelInstrutorPageClient() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4 mb-5 md:mb-8">
             <div className="flex items-center gap-3 md:gap-4">
-              <img
-                src={instrutor.foto_url}
-                alt={instrutor.nome}
-                className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-neutral-200"
-              />
+              <div className="relative group cursor-pointer">
+                <img
+                  src={instrutor.foto_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(instrutor.nome)}&background=random`}
+                  alt={instrutor.nome}
+                  className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-neutral-200"
+                />
+                <label className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 rounded-full transition-opacity cursor-pointer">
+                  <Camera size={20} />
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const tId = toast.loading('Enviando foto...')
+                    const url = await uploadFoto(instrutor.user_id || instrutor.id, file)
+                    if (url) {
+                      const ok = await atualizarFotoPerfil(instrutor.id, url)
+                      if (ok) {
+                        toast.success('Foto atualizada!', { id: tId })
+                        await recarregarInstrutor()
+                      } else {
+                        toast.error('Erro ao atualizar foto.', { id: tId })
+                      }
+                    } else {
+                      toast.error('Erro no upload.', { id: tId })
+                    }
+                  }} />
+                </label>
+              </div>
               <div>
                 <h1 className="text-lg md:text-2xl font-bold">{instrutor.nome}</h1>
                 <p className="text-neutral-500 text-xs md:text-sm">{instrutor.email}</p>
@@ -330,12 +324,28 @@ export default function PainelInstrutorPageClient() {
                   <p className="text-red-700 text-sm leading-relaxed mb-3">
                     {instrutor.motivo_recusa || 'Seu cadastro foi recusado. Entre em contato com o suporte para mais informações.'}
                   </p>
-                  <button
-                    onClick={abrirSuporte}
-                    className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
-                  >
-                    <MessageCircle size={14} /> Falar com Suporte
-                  </button>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={abrirSuporte}
+                      className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
+                    >
+                      <MessageCircle size={14} /> Falar com Suporte
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const ok = await solicitarNovaAnalise(instrutor.id)
+                        if (ok) {
+                          toast.success('Perfil enviado para nova análise!')
+                          recarregarInstrutor()
+                        } else {
+                          toast.error('Erro ao enviar.')
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors"
+                    >
+                      <CheckCircle size={14} /> Solicitar Nova Análise
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -412,14 +422,14 @@ export default function PainelInstrutorPageClient() {
                     <Eye className="text-purple-500" size={16} />
                     <span className="text-xs md:text-sm text-neutral-500">Views</span>
                   </div>
-                  <p className="text-xl md:text-2xl font-bold">1.234</p>
+                  <p className="text-xl md:text-2xl font-bold">{instrutor.visualizacoes}</p>
                 </div>
                 <div className="bg-white border border-neutral-200 rounded-xl p-3 md:p-4">
                   <div className="flex items-center gap-2 md:gap-3 mb-1.5 md:mb-2">
                     <MessageSquare className="text-green-500" size={16} />
                     <span className="text-xs md:text-sm text-neutral-500">Contatos</span>
                   </div>
-                  <p className="text-xl md:text-2xl font-bold">47</p>
+                  <p className="text-xl md:text-2xl font-bold">{instrutor.contatos?.length || 0}</p>
                 </div>
               </div>
 
@@ -676,7 +686,7 @@ export default function PainelInstrutorPageClient() {
                 </h3>
                 <div className="space-y-3">
                   {instrutor.documentos.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-4 py-3">
+                    <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-4 py-3 border border-transparent hover:border-neutral-200 transition-colors">
                       <div className="flex items-center gap-3">
                         <FileText className="text-neutral-400" size={18} />
                         <div>
@@ -689,7 +699,31 @@ export default function PainelInstrutorPageClient() {
                           </p>
                         </div>
                       </div>
-                      <CheckCircle className="text-green-500" size={18} />
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="text-green-500 hidden md:block" size={18} />
+                        {(instrutor.status === 'recusado' || editando) && (
+                          <label className="cursor-pointer bg-white border border-neutral-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition-colors">
+                            Substituir
+                            <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg" onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              const tId = toast.loading('Enviando novo documento...')
+                              const upload = await uploadDocumento(instrutor.user_id || instrutor.id, file, doc.tipo)
+                              if (upload) {
+                                const ok = await atualizarDocumento(doc.id, { nome_arquivo: upload.nome_arquivo, url: upload.url })
+                                if (ok) {
+                                  toast.success('Documento atualizado!', { id: tId })
+                                  recarregarInstrutor()
+                                } else {
+                                  toast.error('Erro ao atualizar!', { id: tId })
+                                }
+                              } else {
+                                toast.error('Erro no upload!', { id: tId })
+                              }
+                            }} />
+                          </label>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -744,9 +778,7 @@ export default function PainelInstrutorPageClient() {
                       )}
 
                       <div className="text-center mb-5 pt-2">
-                        {plano.tipo === 'basico' && <Shield className="mx-auto text-blue-500 mb-2" size={28} />}
-                        {plano.tipo === 'profissional' && <Crown className="mx-auto text-[#EAB308] mb-2" size={28} />}
-                        {plano.tipo === 'premium' && <Crown className="mx-auto text-amber-500 mb-2" size={28} />}
+                        <Crown className="mx-auto text-[#EAB308] mb-2" size={28} />
                         <h3 className="font-bold text-lg">{plano.nome}</h3>
                         <div className="mt-2">
                           <span className="text-sm text-neutral-400">R$</span>
@@ -788,16 +820,16 @@ export default function PainelInstrutorPageClient() {
           {tab === 'estatisticas' && (
             <div className="space-y-4 md:space-y-6">
               <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
-                <h3 className="font-bold text-base md:text-lg mb-4 md:mb-6">Resumo dos últimos 30 dias</h3>
+                <h3 className="font-bold text-base md:text-lg mb-4 md:mb-6">Resumo Total</h3>
                 <div className="grid grid-cols-3 gap-3 md:gap-6">
                   <div className="text-center">
                     <Eye className="mx-auto text-purple-500 mb-1.5" size={20} />
-                    <p className="text-xl md:text-3xl font-bold">1.234</p>
+                    <p className="text-xl md:text-3xl font-bold">{instrutor.visualizacoes}</p>
                     <p className="text-[10px] md:text-sm text-neutral-500">Views</p>
                   </div>
                   <div className="text-center">
                     <MessageSquare className="mx-auto text-green-500 mb-1.5" size={20} />
-                    <p className="text-xl md:text-3xl font-bold">47</p>
+                    <p className="text-xl md:text-3xl font-bold">{instrutor.contatos?.length || 0}</p>
                     <p className="text-[10px] md:text-sm text-neutral-500">Contatos</p>
                   </div>
                   <div className="text-center">

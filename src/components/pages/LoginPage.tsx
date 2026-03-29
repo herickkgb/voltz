@@ -121,12 +121,6 @@ export default function LoginPageClient() {
               {isLoading ? 'Entrando...' : 'Entrar'}
             </button>
 
-            <div className="bg-neutral-50 border border-neutral-100 rounded-xl p-4 text-xs text-neutral-500 space-y-1">
-              <p className="font-semibold text-neutral-700 mb-2">Contas de teste:</p>
-              <p><strong>Admin:</strong> admin@voltz.com.br</p>
-              <p><strong>Instrutor:</strong> carlos@email.com</p>
-              <p className="text-neutral-400 mt-1">Qualquer senha funciona no modo demo</p>
-            </div>
 
             <p className="text-center text-neutral-500 text-sm">
               Ainda não tem conta?{' '}

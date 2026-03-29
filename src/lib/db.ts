@@ -1,0 +1,435 @@
+import { supabase, useMock } from './supabase'
+import { mockInstrutores, getInstrutorBySlug as mockGetBySlug, getInstrutoresAprovados as mockGetAprovados, getMediaAvaliacao } from './mock-instrutores'
+import type { Instrutor, FiltrosBusca, StatusInstrutor } from '@/types'
+
+// Re-export para manter compatibilidade
+export { getMediaAvaliacao }
+
+// ============================================
+// Helpers para mapear dados do Supabase → tipos do app
+// ============================================
+
+function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
+  const loc = row.localizacoes as Record<string, unknown> | Record<string, unknown>[] | null
+  const locData = Array.isArray(loc) ? loc[0] : loc
+
+  return {
+    id: row.id as string,
+    user_id: row.user_id as string | undefined,
+    nome: row.nome as string,
+    cpf: row.cpf as string,
+    cnpj: (row.cnpj as string) || undefined,
+    data_nascimento: row.data_nascimento as string,
+    email: row.email as string,
+    telefone: row.telefone as string,
+    foto_url: row.foto_url as string,
+    registro_senatran: row.registro_senatran as string,
+    categorias: row.categorias as string[],
+    anos_experiencia: row.anos_experiencia as number,
+    alunos_formados: row.alunos_formados as number,
+    descricao: row.descricao as string,
+    preco_hora: Number(row.preco_hora),
+    aceita_veiculo_candidato: row.aceita_veiculo_candidato as boolean,
+    genero: row.genero as 'masculino' | 'feminino',
+    status: row.status as StatusInstrutor,
+    motivo_recusa: (row.motivo_recusa as string) || undefined,
+    plano: row.plano as Instrutor['plano'],
+    slug: row.slug as string,
+    created_at: (row.criado_em as string) || (row.created_at as string),
+    localizacao: locData ? {
+      id: locData.id as string,
+      instrutor_id: locData.instrutor_id as string,
+      cep: locData.cep as string,
+      cidade: locData.cidade as string,
+      estado: locData.estado as string,
+      bairro: locData.bairro as string,
+      lat: Number(locData.lat),
+      lng: Number(locData.lng),
+      raio_km: locData.raio_km as number,
+    } : {
+      id: '', instrutor_id: '', cep: '', cidade: '', estado: '', bairro: '', lat: 0, lng: 0, raio_km: 10,
+    },
+    veiculos: ((row.veiculos as Record<string, unknown>[]) || []).map(v => ({
+      id: v.id as string,
+      instrutor_id: v.instrutor_id as string,
+      marca: v.marca as string,
+      modelo: v.modelo as string,
+      ano: v.ano as number,
+      cambio: v.cambio as 'manual' | 'automatico',
+      foto_url: (v.foto_url as string) || undefined,
+    })),
+    disponibilidades: ((row.disponibilidades as Record<string, unknown>[]) || []).map(d => ({
+      id: d.id as string,
+      instrutor_id: d.instrutor_id as string,
+      dia_semana: d.dia_semana as number,
+      turno: d.turno as 'manha' | 'tarde' | 'noite',
+    })),
+    avaliacoes: ((row.avaliacoes as Record<string, unknown>[]) || []).map(a => ({
+      id: a.id as string,
+      instrutor_id: a.instrutor_id as string,
+      nome_aluno: a.nome_aluno as string,
+      nota: a.nota as number,
+      comentario: a.comentario as string,
+      resposta_instrutor: (a.resposta_instrutor as string) || undefined,
+      created_at: (a.criado_em as string) || (a.created_at as string),
+    })),
+    documentos: ((row.documentos as Record<string, unknown>[]) || []).map(d => ({
+      id: d.id as string,
+      instrutor_id: d.instrutor_id as string,
+      tipo: d.tipo as 'certificado_senatran' | 'comprovante_residencia' | 'cnh' | 'foto_veiculo',
+      nome_arquivo: d.nome_arquivo as string,
+      url: d.url as string,
+      uploaded_at: (d.enviado_em as string) || (d.uploaded_at as string),
+    })),
+  }
+}
+
+const INSTRUTOR_SELECT = `
+  *,
+  localizacoes(*),
+  veiculos(*),
+  disponibilidades(*),
+  avaliacoes(*),
+  documentos(*)
+`
+
+// ============================================
+// Consultas públicas
+// ============================================
+
+export async function getInstrutoresAprovados(): Promise<Instrutor[]> {
+  if (useMock) return mockGetAprovados()
+
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .select(INSTRUTOR_SELECT)
+    .eq('status', 'aprovado')
+    .order('criado_em', { ascending: false })
+
+  if (error) {
+    console.error('Erro ao buscar instrutores:', error)
+    return []
+  }
+
+  return (data || []).map(mapInstrutorFromDB)
+}
+
+export async function getInstrutorBySlug(slug: string): Promise<Instrutor | null> {
+  if (useMock) return mockGetBySlug(slug) || null
+
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .select(INSTRUTOR_SELECT)
+    .eq('slug', slug)
+    .single()
+
+  if (error || !data) return null
+
+  return mapInstrutorFromDB(data)
+}
+
+export async function buscarInstrutores(filtros: FiltrosBusca): Promise<Instrutor[]> {
+  if (useMock) {
+    let resultado = mockInstrutores.filter(i => i.status === 'aprovado')
+
+    if (filtros.cidade) {
+      const termo = filtros.cidade.toLowerCase()
+      resultado = resultado.filter(i =>
+        i.localizacao.cidade.toLowerCase().includes(termo) ||
+        i.localizacao.bairro.toLowerCase().includes(termo) ||
+        i.localizacao.estado.toLowerCase().includes(termo)
+      )
+    }
+    if (filtros.categorias?.length) {
+      resultado = resultado.filter(i =>
+        filtros.categorias!.some(c => i.categorias.includes(c))
+      )
+    }
+    if (filtros.precoMin) resultado = resultado.filter(i => i.preco_hora >= filtros.precoMin!)
+    if (filtros.precoMax) resultado = resultado.filter(i => i.preco_hora <= filtros.precoMax!)
+    if (filtros.avaliacaoMin) {
+      resultado = resultado.filter(i => {
+        const media = i.avaliacoes.reduce((acc, a) => acc + a.nota, 0) / (i.avaliacoes.length || 1)
+        return media >= filtros.avaliacaoMin!
+      })
+    }
+    if (filtros.anosExperienciaMin) resultado = resultado.filter(i => i.anos_experiencia >= filtros.anosExperienciaMin!)
+    if (filtros.genero) resultado = resultado.filter(i => i.genero === filtros.genero)
+    if (filtros.aceitaVeiculoCandidato) resultado = resultado.filter(i => i.aceita_veiculo_candidato)
+    if (filtros.ordenar === 'avaliacao') {
+      resultado.sort((a, b) => {
+        const mA = a.avaliacoes.reduce((acc, av) => acc + av.nota, 0) / (a.avaliacoes.length || 1)
+        const mB = b.avaliacoes.reduce((acc, av) => acc + av.nota, 0) / (b.avaliacoes.length || 1)
+        return mB - mA
+      })
+    } else if (filtros.ordenar === 'preco') {
+      resultado.sort((a, b) => a.preco_hora - b.preco_hora)
+    }
+    return resultado
+  }
+
+  // Supabase query
+  let query = supabase!
+    .from('instrutores')
+    .select(INSTRUTOR_SELECT)
+    .eq('status', 'aprovado')
+
+  if (filtros.categorias?.length) {
+    query = query.overlaps('categorias', filtros.categorias)
+  }
+  if (filtros.precoMin) query = query.gte('preco_hora', filtros.precoMin)
+  if (filtros.precoMax) query = query.lte('preco_hora', filtros.precoMax)
+  if (filtros.anosExperienciaMin) query = query.gte('anos_experiencia', filtros.anosExperienciaMin)
+  if (filtros.genero) query = query.eq('genero', filtros.genero)
+  if (filtros.aceitaVeiculoCandidato) query = query.eq('aceita_veiculo_candidato', true)
+
+  if (filtros.ordenar === 'preco') {
+    query = query.order('preco_hora', { ascending: true })
+  } else {
+    query = query.order('criado_em', { ascending: false })
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Erro ao buscar instrutores:', error)
+    return []
+  }
+
+  let resultado = (data || []).map(mapInstrutorFromDB)
+
+  // Filtros que precisam de join (cidade) — filtrar no client
+  if (filtros.cidade) {
+    const termo = filtros.cidade.toLowerCase()
+    resultado = resultado.filter(i =>
+      i.localizacao.cidade.toLowerCase().includes(termo) ||
+      i.localizacao.bairro.toLowerCase().includes(termo) ||
+      i.localizacao.estado.toLowerCase().includes(termo)
+    )
+  }
+
+  if (filtros.avaliacaoMin) {
+    resultado = resultado.filter(i => {
+      const media = i.avaliacoes.reduce((acc, a) => acc + a.nota, 0) / (i.avaliacoes.length || 1)
+      return media >= filtros.avaliacaoMin!
+    })
+  }
+
+  return resultado
+}
+
+// ============================================
+// Admin
+// ============================================
+
+export async function getTodosInstrutores(): Promise<Instrutor[]> {
+  if (useMock) return [...mockInstrutores]
+
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .select(INSTRUTOR_SELECT)
+    .order('criado_em', { ascending: false })
+
+  if (error) {
+    console.error('Erro ao buscar todos instrutores:', error)
+    return []
+  }
+
+  return (data || []).map(mapInstrutorFromDB)
+}
+
+export async function atualizarStatusInstrutor(
+  id: string,
+  status: StatusInstrutor,
+  motivo_recusa?: string
+): Promise<boolean> {
+  if (useMock) return true
+
+  const updateData: Record<string, unknown> = { status }
+  if (motivo_recusa !== undefined) updateData.motivo_recusa = motivo_recusa
+  if (status === 'aprovado') updateData.motivo_recusa = null
+
+  const { error } = await supabase!
+    .from('instrutores')
+    .update(updateData)
+    .eq('id', id)
+
+  if (error) {
+    console.error('Erro ao atualizar status:', error)
+    return false
+  }
+  return true
+}
+
+// ============================================
+// Instrutor (próprio perfil)
+// ============================================
+
+export async function getInstrutorPorUserId(userId: string): Promise<Instrutor | null> {
+  if (useMock) {
+    return mockInstrutores.find(i => i.email === userId) || mockInstrutores[0]
+  }
+
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .select(INSTRUTOR_SELECT)
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !data) return null
+
+  return mapInstrutorFromDB(data)
+}
+
+export async function atualizarPerfilInstrutor(
+  id: string,
+  dados: {
+    telefone?: string
+    preco_hora?: number
+    descricao?: string
+    categorias?: string[]
+    aceita_veiculo_candidato?: boolean
+  }
+): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('instrutores')
+    .update({ ...dados, status: 'em_analise' })
+    .eq('id', id)
+
+  if (error) {
+    console.error('Erro ao atualizar perfil:', error)
+    return false
+  }
+  return true
+}
+
+export async function atualizarLocalizacao(
+  instrutorId: string,
+  dados: { cep: string; cidade: string; estado: string; bairro: string; raio_km: number }
+): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('localizacoes')
+    .upsert({ instrutor_id: instrutorId, ...dados }, { onConflict: 'instrutor_id' })
+
+  if (error) {
+    console.error('Erro ao atualizar localização:', error)
+    return false
+  }
+  return true
+}
+
+// ============================================
+// Cadastro de novo instrutor
+// ============================================
+
+export async function criarInstrutor(
+  userId: string,
+  dados: {
+    nome: string
+    cpf: string
+    cnpj?: string
+    data_nascimento: string
+    email: string
+    telefone: string
+    foto_url?: string
+    registro_senatran: string
+    categorias: string[]
+    anos_experiencia: number
+    descricao: string
+    preco_hora: number
+    aceita_veiculo_candidato: boolean
+    genero: 'masculino' | 'feminino'
+    slug: string
+  }
+): Promise<{ id: string } | null> {
+  if (useMock) return { id: 'mock-new' }
+
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .insert({
+      user_id: userId,
+      ...dados,
+      status: 'em_analise',
+      plano: 'basico',
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Erro ao criar instrutor:', error)
+    return null
+  }
+
+  return data
+}
+
+export async function criarLocalizacao(
+  instrutorId: string,
+  dados: { cep: string; cidade: string; estado: string; bairro: string }
+): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('localizacoes')
+    .insert({ instrutor_id: instrutorId, ...dados })
+
+  if (error) {
+    console.error('Erro ao criar localização:', error)
+    return false
+  }
+  return true
+}
+
+export async function criarVeiculo(
+  instrutorId: string,
+  dados: { marca: string; modelo: string; ano: number; cambio: 'manual' | 'automatico' }
+): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('veiculos')
+    .insert({ instrutor_id: instrutorId, ...dados })
+
+  if (error) {
+    console.error('Erro ao criar veículo:', error)
+    return false
+  }
+  return true
+}
+
+export async function criarDocumento(
+  instrutorId: string,
+  dados: { tipo: string; nome_arquivo: string; url: string }
+): Promise<boolean> {
+  if (useMock) return true
+
+  const { error } = await supabase!
+    .from('documentos')
+    .insert({ instrutor_id: instrutorId, ...dados })
+
+  if (error) {
+    console.error('Erro ao criar documento:', error)
+    return false
+  }
+  return true
+}
+
+// ============================================
+// Sitemap
+// ============================================
+
+export async function getSlugsAprovados(): Promise<string[]> {
+  if (useMock) return mockGetAprovados().map(i => i.slug)
+
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .select('slug')
+    .eq('status', 'aprovado')
+
+  if (error) return []
+  return (data || []).map((d: { slug: string }) => d.slug)
+}

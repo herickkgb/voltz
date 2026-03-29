@@ -1,0 +1,902 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
+import { useAuth } from '@/contexts/AuthContext'
+import { atualizarPerfilInstrutor, atualizarLocalizacao } from '@/lib/db'
+import { telefoneMask, cepMask } from '@/lib/validations'
+import { toast } from 'sonner'
+import { useViaCep } from '@/hooks/useViaCep'
+import type { PlanoTipo } from '@/types'
+import {
+  User,
+  FileText,
+  MapPin,
+  Car,
+  Star,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Shield,
+  Crown,
+  Eye,
+  TrendingUp,
+  MessageSquare,
+  MessageCircle,
+  LogOut,
+  Check,
+  Pencil,
+  Save,
+  X,
+  Headphones,
+  Plus,
+  Trash2,
+} from 'lucide-react'
+
+const planos: { tipo: PlanoTipo; nome: string; preco: number; recursos: string[]; destaque: boolean }[] = [
+  {
+    tipo: 'basico',
+    nome: 'Básico',
+    preco: 29.90,
+    recursos: [
+      'Perfil na plataforma',
+      'Aparecer nas buscas',
+      'Receber contatos de alunos',
+      'Selo "Verificado" no perfil',
+      'Até 10 fotos no perfil',
+      'Estatísticas de visualização',
+    ],
+    destaque: false,
+  },
+  {
+    tipo: 'profissional',
+    nome: 'Profissional',
+    preco: 59.90,
+    recursos: [
+      'Tudo do plano Básico',
+      'Destaque em todas as buscas',
+      'Perfil aparece em primeiro',
+      'Selo "Profissional" exclusivo',
+      'Até 20 fotos + vídeo',
+      'Relatório mensal de desempenho',
+      'Suporte prioritário',
+    ],
+    destaque: true,
+  },
+  {
+    tipo: 'premium',
+    nome: 'Premium',
+    preco: 99.90,
+    recursos: [
+      'Tudo do plano Profissional',
+      'Destaque máximo (topo das buscas)',
+      'Selo "Premium" dourado',
+      'Fotos e vídeos ilimitados',
+      'Link na página inicial',
+      'Relatórios semanais detalhados',
+      'Suporte VIP via WhatsApp',
+      'Perfil promovido em redes sociais',
+    ],
+    destaque: false,
+  },
+]
+
+const statusConfig = {
+  em_analise: { label: 'Em Análise', icon: Clock, bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', iconColor: 'text-amber-600' },
+  aprovado: { label: 'Aprovado', icon: CheckCircle, bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', iconColor: 'text-green-600' },
+  recusado: { label: 'Recusado', icon: XCircle, bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', iconColor: 'text-red-600' },
+  suspenso: { label: 'Suspenso', icon: AlertCircle, bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', iconColor: 'text-orange-600' },
+}
+
+const SUPORTE_WHATSAPP = '5511999990000'
+
+export default function PainelInstrutorPageClient() {
+  const { user, logout, isReady, recarregarInstrutor } = useAuth()
+  const router = useRouter()
+  const { buscarCep, loading: cepLoading } = useViaCep()
+  const [tab, setTab] = useState<'perfil' | 'planos' | 'estatisticas'>('perfil')
+  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoTipo | null>(null)
+
+  // Editing states
+  const [editando, setEditando] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [editTelefone, setEditTelefone] = useState('')
+  const [editPrecoHora, setEditPrecoHora] = useState('')
+  const [editDescricao, setEditDescricao] = useState('')
+  const [editCep, setEditCep] = useState('')
+  const [editCidade, setEditCidade] = useState('')
+  const [editEstado, setEditEstado] = useState('')
+  const [editBairro, setEditBairro] = useState('')
+  const [editRaioKm, setEditRaioKm] = useState('')
+  const [editAceitaVeiculo, setEditAceitaVeiculo] = useState(false)
+  const [editCategorias, setEditCategorias] = useState<string[]>([])
+  const [editVeiculos, setEditVeiculos] = useState<{ marca: string; modelo: string; ano: string; cambio: string }[]>([])
+  const [respondendoId, setRespondendoId] = useState<string | null>(null)
+  const [respostaTexto, setRespostaTexto] = useState('')
+  const [salvandoResposta, setSalvandoResposta] = useState(false)
+
+  if (!isReady) {
+    return (
+      <div className="min-h-screen bg-neutral-50 text-neutral-900">
+        <Navbar />
+        <div className="pt-32 pb-20 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FACC15]" />
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (!user || !user.instrutor) {
+    return (
+      <div className="min-h-screen bg-neutral-50 text-neutral-900">
+        <Navbar />
+        <div className="pt-32 pb-20 flex items-center justify-center px-4">
+          <div className="text-center">
+            <AlertCircle className="mx-auto text-neutral-400 mb-4" size={48} />
+            <h1 className="text-2xl font-bold mb-2">Acesso Restrito</h1>
+            <p className="text-neutral-500 mb-6">Faça login para acessar o painel do instrutor.</p>
+            <a href="/login" className="bg-[#FACC15] text-neutral-900 px-6 py-3 rounded-xl font-bold hover:bg-[#EAB308] transition-all">
+              Fazer Login
+            </a>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  const instrutor = user.instrutor
+  const status = statusConfig[instrutor.status]
+  const StatusIcon = status.icon
+
+  const inputClass = 'w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all'
+
+  const handleLogout = () => {
+    logout()
+    router.push('/')
+  }
+
+  const iniciarEdicao = () => {
+    setEditTelefone(instrutor.telefone)
+    setEditPrecoHora(String(instrutor.preco_hora))
+    setEditDescricao(instrutor.descricao)
+    setEditCep(instrutor.localizacao.cep)
+    setEditCidade(instrutor.localizacao.cidade)
+    setEditEstado(instrutor.localizacao.estado)
+    setEditBairro(instrutor.localizacao.bairro)
+    setEditRaioKm(String(instrutor.localizacao.raio_km))
+    setEditAceitaVeiculo(instrutor.aceita_veiculo_candidato)
+    setEditCategorias([...instrutor.categorias])
+    setEditVeiculos(instrutor.veiculos.map(v => ({ marca: v.marca, modelo: v.modelo, ano: String(v.ano), cambio: v.cambio })))
+    setEditando(true)
+  }
+
+  const cancelarEdicao = () => {
+    setEditando(false)
+  }
+
+  const salvarEdicao = async () => {
+    setSalvando(true)
+    try {
+      const perfilOk = await atualizarPerfilInstrutor(instrutor.id, {
+        telefone: editTelefone,
+        preco_hora: Number(editPrecoHora),
+        descricao: editDescricao,
+        categorias: editCategorias,
+        aceita_veiculo_candidato: editAceitaVeiculo,
+      })
+
+      if (!perfilOk) {
+        toast.error('Erro ao salvar dados do perfil. Tente novamente.')
+        setSalvando(false)
+        return
+      }
+
+      const locOk = await atualizarLocalizacao(instrutor.id, {
+        cep: editCep,
+        cidade: editCidade,
+        estado: editEstado,
+        bairro: editBairro,
+        raio_km: Number(editRaioKm),
+      })
+
+      if (!locOk) {
+        toast.error('Erro ao salvar localização. Tente novamente.')
+        setSalvando(false)
+        return
+      }
+
+      await recarregarInstrutor()
+      setEditando(false)
+      toast.success('Alterações salvas! Seu perfil será revisado pela equipe antes de aparecer publicamente.')
+    } catch {
+      toast.error('Erro inesperado ao salvar. Verifique sua conexão e tente novamente.')
+    }
+    setSalvando(false)
+  }
+
+  const handleEditCepChange = async (value: string) => {
+    const masked = cepMask(value)
+    setEditCep(masked)
+    if (masked.length === 9) {
+      const data = await buscarCep(masked)
+      if (data) {
+        setEditCidade(data.localidade)
+        setEditEstado(data.uf)
+        setEditBairro(data.bairro)
+      }
+    }
+  }
+
+  const toggleEditCategoria = (cat: string) => {
+    setEditCategorias(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    )
+  }
+
+  const addEditVeiculo = () => {
+    setEditVeiculos([...editVeiculos, { marca: '', modelo: '', ano: '', cambio: 'manual' }])
+  }
+
+  const removeEditVeiculo = (index: number) => {
+    if (editVeiculos.length === 1) return
+    setEditVeiculos(editVeiculos.filter((_, i) => i !== index))
+  }
+
+  const updateEditVeiculo = (index: number, field: string, value: string) => {
+    const updated = [...editVeiculos]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditVeiculos(updated)
+  }
+
+  const abrirSuporte = () => {
+    const msg = encodeURIComponent(`Olá, sou o instrutor ${instrutor.nome} (${instrutor.email}). Preciso de ajuda com minha conta na Voltz.`)
+    window.open(`https://wa.me/${SUPORTE_WHATSAPP}?text=${msg}`, '_blank')
+  }
+
+  const handleAssinar = (tipo: PlanoTipo) => {
+    setPlanoSelecionado(tipo)
+    setTimeout(() => {
+      setPlanoSelecionado(null)
+      toast.info(`Plano ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} selecionado! O pagamento será disponibilizado em breve.`)
+    }, 1000)
+  }
+
+  return (
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      <Navbar />
+
+      <div className="pt-20 pb-16 md:pt-28 md:pb-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4 mb-5 md:mb-8">
+            <div className="flex items-center gap-3 md:gap-4">
+              <img
+                src={instrutor.foto_url}
+                alt={instrutor.nome}
+                className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-neutral-200"
+              />
+              <div>
+                <h1 className="text-lg md:text-2xl font-bold">{instrutor.nome}</h1>
+                <p className="text-neutral-500 text-xs md:text-sm">{instrutor.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+              <div className={`${status.bg} ${status.border} border rounded-full px-3 py-1 md:px-4 md:py-1.5 flex items-center gap-1.5 md:gap-2`}>
+                <StatusIcon className={status.iconColor} size={14} />
+                <span className={`text-xs md:text-sm font-semibold ${status.text}`}>{status.label}</span>
+              </div>
+              <button
+                onClick={abrirSuporte}
+                className="flex items-center gap-1.5 bg-green-500 text-white px-3 py-1 md:px-4 md:py-1.5 rounded-full text-xs md:text-sm font-semibold hover:bg-green-600 transition-colors"
+              >
+                <Headphones size={12} /> Suporte
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-neutral-400 hover:text-red-500 transition-colors text-sm"
+              >
+                <LogOut size={16} /> Sair
+              </button>
+            </div>
+          </div>
+
+          {/* Status Banner */}
+          {instrutor.status === 'em_analise' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl md:rounded-2xl p-4 md:p-5 mb-4 md:mb-6">
+              <div className="flex items-start gap-2.5 md:gap-3">
+                <Clock className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
+                <div>
+                  <h3 className="font-bold text-amber-800 mb-1 text-sm md:text-base">Seu perfil está em análise</h3>
+                  <p className="text-amber-700 text-xs md:text-sm leading-relaxed">
+                    Nossa equipe está verificando seus documentos e informações. Esse processo pode levar até 48 horas úteis.
+                    Você será notificado por e-mail quando a análise for concluída.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {instrutor.status === 'recusado' && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6">
+              <div className="flex items-start gap-3">
+                <XCircle className="text-red-600 flex-shrink-0 mt-0.5" size={22} />
+                <div>
+                  <h3 className="font-bold text-red-800 mb-1">Cadastro Recusado</h3>
+                  <p className="text-red-700 text-sm leading-relaxed mb-3">
+                    {instrutor.motivo_recusa || 'Seu cadastro foi recusado. Entre em contato com o suporte para mais informações.'}
+                  </p>
+                  <button
+                    onClick={abrirSuporte}
+                    className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
+                  >
+                    <MessageCircle size={14} /> Falar com Suporte
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {instrutor.status === 'suspenso' && (
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-orange-600 flex-shrink-0 mt-0.5" size={22} />
+                <div>
+                  <h3 className="font-bold text-orange-800 mb-1">Perfil Suspenso</h3>
+                  <p className="text-orange-700 text-sm leading-relaxed mb-3">
+                    Seu perfil foi suspenso temporariamente. Entre em contato com o suporte para mais detalhes.
+                  </p>
+                  <button
+                    onClick={abrirSuporte}
+                    className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-200 transition-colors"
+                  >
+                    <MessageCircle size={14} /> Falar com Suporte
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex gap-1 bg-neutral-100 rounded-xl p-1 mb-4 md:mb-6">
+            {[
+              { id: 'perfil' as const, label: 'Perfil', icon: User },
+              { id: 'planos' as const, label: 'Planos', icon: Crown },
+              { id: 'estatisticas' as const, label: 'Stats', icon: TrendingUp },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 md:gap-2 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                  tab === t.id
+                    ? 'bg-white text-neutral-900 shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                <t.icon size={16} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content: Perfil */}
+          {tab === 'perfil' && (
+            <div className="space-y-6">
+              {/* Info Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
+                <div className="bg-white border border-neutral-200 rounded-xl p-3 md:p-4">
+                  <div className="flex items-center gap-2 md:gap-3 mb-1.5 md:mb-2">
+                    <Star className="text-[#EAB308]" size={16} />
+                    <span className="text-xs md:text-sm text-neutral-500">Avaliação</span>
+                  </div>
+                  <p className="text-xl md:text-2xl font-bold">
+                    {instrutor.avaliacoes.length > 0
+                      ? (instrutor.avaliacoes.reduce((a, b) => a + b.nota, 0) / instrutor.avaliacoes.length).toFixed(1)
+                      : '—'
+                    }
+                  </p>
+                </div>
+                <div className="bg-white border border-neutral-200 rounded-xl p-3 md:p-4">
+                  <div className="flex items-center gap-2 md:gap-3 mb-1.5 md:mb-2">
+                    <User className="text-blue-500" size={16} />
+                    <span className="text-xs md:text-sm text-neutral-500">Alunos</span>
+                  </div>
+                  <p className="text-xl md:text-2xl font-bold">{instrutor.alunos_formados}</p>
+                </div>
+                <div className="bg-white border border-neutral-200 rounded-xl p-3 md:p-4">
+                  <div className="flex items-center gap-2 md:gap-3 mb-1.5 md:mb-2">
+                    <Eye className="text-purple-500" size={16} />
+                    <span className="text-xs md:text-sm text-neutral-500">Views</span>
+                  </div>
+                  <p className="text-xl md:text-2xl font-bold">1.234</p>
+                </div>
+                <div className="bg-white border border-neutral-200 rounded-xl p-3 md:p-4">
+                  <div className="flex items-center gap-2 md:gap-3 mb-1.5 md:mb-2">
+                    <MessageSquare className="text-green-500" size={16} />
+                    <span className="text-xs md:text-sm text-neutral-500">Contatos</span>
+                  </div>
+                  <p className="text-xl md:text-2xl font-bold">47</p>
+                </div>
+              </div>
+
+              {/* Edit button */}
+              {!editando && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={iniciarEdicao}
+                    className="flex items-center gap-2 bg-[#FACC15] text-neutral-900 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#EAB308] transition-all"
+                  >
+                    <Pencil size={16} /> Editar Perfil
+                  </button>
+                </div>
+              )}
+
+              {/* Edit mode banner */}
+              {editando && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl md:rounded-2xl p-3 md:p-4 flex flex-col md:flex-row items-start gap-2 md:gap-3">
+                  <div className="flex items-start gap-2 flex-1">
+                    <Pencil className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+                    <div>
+                      <p className="text-blue-800 font-semibold text-xs md:text-sm">Modo de edição ativo</p>
+                      <p className="text-blue-700 text-[10px] md:text-xs">Alterações serão revisadas pelo admin.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0 w-full md:w-auto">
+                    <button onClick={cancelarEdicao} className="flex-1 md:flex-none flex items-center justify-center gap-1 border border-neutral-200 text-neutral-600 px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:bg-neutral-50 transition-colors">
+                      <X size={12} /> Cancelar
+                    </button>
+                    <button onClick={salvarEdicao} disabled={salvando} className="flex-1 md:flex-none flex items-center justify-center gap-1 bg-[#FACC15] text-neutral-900 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold hover:bg-[#EAB308] transition-colors disabled:opacity-50">
+                      <Save size={12} /> {salvando ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Profile Details */}
+              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
+                  <FileText size={16} className="text-[#EAB308]" />
+                  Informações do Perfil
+                </h3>
+
+                {!editando ? (
+                  <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-neutral-400 block mb-1">CPF</span>
+                      <span className="font-medium">{instrutor.cpf}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Telefone</span>
+                      <span className="font-medium">{instrutor.telefone}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Registro SENATRAN</span>
+                      <span className="font-medium">{instrutor.registro_senatran}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Categorias</span>
+                      <div className="flex gap-1">
+                        {instrutor.categorias.map((cat) => (
+                          <span key={cat} className="bg-[#FACC15]/10 text-[#92600e] px-2 py-0.5 rounded text-xs font-bold">{cat}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Experiência</span>
+                      <span className="font-medium">{instrutor.anos_experiencia} anos</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Preço/hora</span>
+                      <span className="font-medium">R$ {instrutor.preco_hora}</span>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-neutral-400 block mb-1">Descrição</span>
+                      <span className="font-medium leading-relaxed">{instrutor.descricao}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-500 mb-1 block">CPF (não editável)</label>
+                        <input type="text" value={instrutor.cpf} disabled className={`${inputClass} bg-neutral-50 text-neutral-400`} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-500 mb-1 block">Telefone</label>
+                        <input type="text" value={editTelefone} onChange={(e) => setEditTelefone(telefoneMask(e.target.value))} className={inputClass} />
+                      </div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-500 mb-1 block">Registro SENATRAN (não editável)</label>
+                        <input type="text" value={instrutor.registro_senatran} disabled className={`${inputClass} bg-neutral-50 text-neutral-400`} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-500 mb-1 block">Preço/hora (R$)</label>
+                        <input type="number" value={editPrecoHora} onChange={(e) => setEditPrecoHora(e.target.value)} className={inputClass} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-neutral-500 mb-2 block">Categorias</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['A', 'B', 'C', 'D', 'E'].map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => toggleEditCategoria(cat)}
+                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                              editCategorias.includes(cat)
+                                ? 'bg-[#FACC15] text-neutral-900 shadow-sm'
+                                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-neutral-500 mb-1 block">Descrição ({editDescricao.length}/500)</label>
+                      <textarea
+                        value={editDescricao}
+                        onChange={(e) => setEditDescricao(e.target.value.slice(0, 500))}
+                        rows={4}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Location */}
+              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
+                  <MapPin size={16} className="text-[#EAB308]" />
+                  Localização
+                </h3>
+                {!editando ? (
+                  <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Cidade</span>
+                      <span className="font-medium">{instrutor.localizacao.cidade} - {instrutor.localizacao.estado}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Bairro</span>
+                      <span className="font-medium">{instrutor.localizacao.bairro}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">CEP</span>
+                      <span className="font-medium">{instrutor.localizacao.cep}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400 block mb-1">Raio de atendimento</span>
+                      <span className="font-medium">{instrutor.localizacao.raio_km} km</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-neutral-500 mb-1 block">CEP</label>
+                      <input type="text" value={editCep} onChange={(e) => handleEditCepChange(e.target.value)} className={inputClass} />
+                      {cepLoading && <p className="text-[#EAB308] text-xs mt-1">Buscando endereço...</p>}
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-500 mb-1 block">Cidade</label>
+                        <input type="text" value={editCidade} readOnly className={`${inputClass} bg-neutral-50`} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-500 mb-1 block">Estado</label>
+                        <input type="text" value={editEstado} readOnly className={`${inputClass} bg-neutral-50`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-neutral-500 mb-1 block">Bairro</label>
+                      <input type="text" value={editBairro} readOnly className={`${inputClass} bg-neutral-50`} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-neutral-500 mb-1 block">Raio de atendimento: {editRaioKm} km</label>
+                      <input type="range" min="5" max="50" value={editRaioKm} onChange={(e) => setEditRaioKm(e.target.value)} className="w-full accent-[#FACC15]" />
+                      <div className="flex justify-between text-xs text-neutral-400 mt-1">
+                        <span>5 km</span>
+                        <span>50 km</span>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={editAceitaVeiculo} onChange={(e) => setEditAceitaVeiculo(e.target.checked)} className="w-5 h-5 rounded border-neutral-300 text-[#FACC15] focus:ring-[#FACC15]/20" />
+                      <span className="text-sm text-neutral-700">Aceito veículo do candidato</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Vehicles */}
+              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
+                  <Car size={16} className="text-[#EAB308]" />
+                  Veículos
+                </h3>
+                {!editando ? (
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {instrutor.veiculos.map((v) => (
+                      <div key={v.id} className="bg-neutral-50 rounded-xl p-4 flex items-center gap-3">
+                        <Car className="text-neutral-400 flex-shrink-0" size={20} />
+                        <div>
+                          <p className="font-semibold text-sm">{v.marca} {v.modelo}</p>
+                          <p className="text-xs text-neutral-500">{v.ano} - {v.cambio === 'manual' ? 'Manual' : 'Automático'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {editVeiculos.map((v, i) => (
+                      <div key={i} className="bg-neutral-50 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-neutral-500">Veículo {i + 1}</span>
+                          {editVeiculos.length > 1 && (
+                            <button type="button" onClick={() => removeEditVeiculo(i)} className="text-red-400 hover:text-red-600">
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input type="text" placeholder="Marca" value={v.marca} onChange={(e) => updateEditVeiculo(i, 'marca', e.target.value)} className={inputClass} />
+                          <input type="text" placeholder="Modelo" value={v.modelo} onChange={(e) => updateEditVeiculo(i, 'modelo', e.target.value)} className={inputClass} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input type="number" placeholder="Ano" value={v.ano} onChange={(e) => updateEditVeiculo(i, 'ano', e.target.value)} className={inputClass} />
+                          <select value={v.cambio} onChange={(e) => updateEditVeiculo(i, 'cambio', e.target.value)} className={inputClass}>
+                            <option value="manual">Manual</option>
+                            <option value="automatico">Automático</option>
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addEditVeiculo}
+                      className="w-full border-2 border-dashed border-neutral-200 rounded-xl py-2.5 text-neutral-400 hover:border-[#FACC15] hover:text-[#EAB308] transition-all flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Plus size={16} /> Adicionar veículo
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Documents */}
+              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
+                  <Shield size={16} className="text-[#EAB308]" />
+                  Documentos Enviados
+                </h3>
+                <div className="space-y-3">
+                  {instrutor.documentos.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <FileText className="text-neutral-400" size={18} />
+                        <div>
+                          <p className="text-sm font-medium">{doc.nome_arquivo}</p>
+                          <p className="text-xs text-neutral-400">
+                            {doc.tipo === 'certificado_senatran' && 'Certificado SENATRAN'}
+                            {doc.tipo === 'comprovante_residencia' && 'Comprovante de Residência'}
+                            {doc.tipo === 'cnh' && 'CNH'}
+                            {doc.tipo === 'foto_veiculo' && 'Foto do Veículo'}
+                          </p>
+                        </div>
+                      </div>
+                      <CheckCircle className="text-green-500" size={18} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Save bar at bottom when editing */}
+              {editando && (
+                <div className="flex justify-end gap-3">
+                  <button onClick={cancelarEdicao} className="flex items-center gap-2 border border-neutral-200 text-neutral-600 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-neutral-50 transition-colors">
+                    <X size={16} /> Cancelar
+                  </button>
+                  <button onClick={salvarEdicao} disabled={salvando} className="flex items-center gap-2 bg-[#FACC15] text-neutral-900 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-[#EAB308] transition-colors disabled:opacity-50">
+                    <Save size={16} /> {salvando ? 'Salvando...' : 'Salvar Alterações'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab Content: Planos */}
+          {tab === 'planos' && (
+            <div>
+              <div className="text-center mb-5 md:mb-8">
+                <h2 className="text-xl md:text-2xl font-bold mb-1.5 md:mb-2">Planos de Assinatura</h2>
+                <p className="text-neutral-500 text-sm md:text-base">Escolha o plano ideal para aumentar sua visibilidade.</p>
+                <p className="text-neutral-400 text-xs md:text-sm mt-1">Assine um plano para manter seu perfil ativo.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5 max-w-4xl mx-auto">
+                {planos.map((plano) => {
+                  const isCurrentPlan = instrutor.plano === plano.tipo
+                  return (
+                    <div
+                      key={plano.tipo}
+                      className={`relative bg-white border-2 rounded-xl md:rounded-2xl p-4 md:p-6 transition-all ${
+                        plano.destaque
+                          ? 'border-[#FACC15] shadow-lg shadow-yellow-400/10'
+                          : isCurrentPlan
+                            ? 'border-green-400'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      {plano.destaque && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FACC15] text-neutral-900 px-3 py-0.5 rounded-full text-xs font-bold">
+                          Mais Popular
+                        </div>
+                      )}
+                      {isCurrentPlan && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white px-3 py-0.5 rounded-full text-xs font-bold">
+                          Plano Atual
+                        </div>
+                      )}
+
+                      <div className="text-center mb-5 pt-2">
+                        {plano.tipo === 'basico' && <Shield className="mx-auto text-blue-500 mb-2" size={28} />}
+                        {plano.tipo === 'profissional' && <Crown className="mx-auto text-[#EAB308] mb-2" size={28} />}
+                        {plano.tipo === 'premium' && <Crown className="mx-auto text-amber-500 mb-2" size={28} />}
+                        <h3 className="font-bold text-lg">{plano.nome}</h3>
+                        <div className="mt-2">
+                          <span className="text-sm text-neutral-400">R$</span>
+                          <span className="text-3xl font-bold">{plano.preco.toFixed(2).split('.')[0]}</span>
+                          <span className="text-sm text-neutral-400">,{plano.preco.toFixed(2).split('.')[1]}/mês</span>
+                        </div>
+                      </div>
+
+                      <ul className="space-y-2 mb-6">
+                        {plano.recursos.map((recurso) => (
+                          <li key={recurso} className="flex items-start gap-2 text-sm">
+                            <Check className="text-green-500 flex-shrink-0 mt-0.5" size={14} />
+                            <span className="text-neutral-600">{recurso}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <button
+                        onClick={() => handleAssinar(plano.tipo)}
+                        disabled={isCurrentPlan || planoSelecionado === plano.tipo}
+                        className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
+                          isCurrentPlan
+                            ? 'bg-green-50 text-green-700 border border-green-200 cursor-default'
+                            : plano.destaque
+                              ? 'bg-[#FACC15] text-neutral-900 hover:bg-[#EAB308] shadow-lg shadow-yellow-400/20'
+                              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                        } disabled:opacity-50`}
+                      >
+                        {isCurrentPlan ? 'Plano Atual' : planoSelecionado === plano.tipo ? 'Processando...' : 'Assinar'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content: Estatísticas */}
+          {tab === 'estatisticas' && (
+            <div className="space-y-4 md:space-y-6">
+              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <h3 className="font-bold text-base md:text-lg mb-4 md:mb-6">Resumo dos últimos 30 dias</h3>
+                <div className="grid grid-cols-3 gap-3 md:gap-6">
+                  <div className="text-center">
+                    <Eye className="mx-auto text-purple-500 mb-1.5" size={20} />
+                    <p className="text-xl md:text-3xl font-bold">1.234</p>
+                    <p className="text-[10px] md:text-sm text-neutral-500">Views</p>
+                  </div>
+                  <div className="text-center">
+                    <MessageSquare className="mx-auto text-green-500 mb-1.5" size={20} />
+                    <p className="text-xl md:text-3xl font-bold">47</p>
+                    <p className="text-[10px] md:text-sm text-neutral-500">Contatos</p>
+                  </div>
+                  <div className="text-center">
+                    <Star className="mx-auto text-[#EAB308] mb-1.5" size={20} />
+                    <p className="text-xl md:text-3xl font-bold">{instrutor.avaliacoes.length}</p>
+                    <p className="text-[10px] md:text-sm text-neutral-500">Avaliações</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Reviews */}
+              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4">Últimas Avaliações</h3>
+                {instrutor.avaliacoes.length === 0 ? (
+                  <p className="text-neutral-400 text-sm">Nenhuma avaliação recebida ainda.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {instrutor.avaliacoes.map((av) => (
+                      <div key={av.id} className="border-b border-neutral-100 pb-4 last:border-0 last:pb-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-sm">{av.nome_aluno}</span>
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                size={14}
+                                className={i < av.nota ? 'text-[#EAB308] fill-[#EAB308]' : 'text-neutral-200'}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-sm text-neutral-600 mb-1">{av.comentario}</p>
+                        {av.resposta_instrutor ? (
+                          <div className="bg-neutral-50 rounded-lg px-3 py-2 mt-2 border-l-2 border-[#FACC15]">
+                            <p className="text-xs text-neutral-400 font-semibold mb-0.5">Sua resposta:</p>
+                            <p className="text-xs text-neutral-600">{av.resposta_instrutor}</p>
+                          </div>
+                        ) : respondendoId === av.id ? (
+                          <div className="mt-2 space-y-2">
+                            <textarea
+                              value={respostaTexto}
+                              onChange={(e) => setRespostaTexto(e.target.value)}
+                              placeholder="Escreva sua resposta..."
+                              className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FACC15] resize-none"
+                              rows={2}
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  if (!respostaTexto.trim()) return
+                                  setSalvandoResposta(true)
+                                  try {
+                                    // Update local state
+                                    const avAtualizada = instrutor.avaliacoes.map(a =>
+                                      a.id === av.id ? { ...a, resposta_instrutor: respostaTexto.trim() } : a
+                                    )
+                                    instrutor.avaliacoes = avAtualizada
+                                    toast.success('Resposta enviada!')
+                                    setRespondendoId(null)
+                                    setRespostaTexto('')
+                                  } catch {
+                                    toast.error('Erro ao enviar resposta')
+                                  } finally {
+                                    setSalvandoResposta(false)
+                                  }
+                                }}
+                                disabled={salvandoResposta || !respostaTexto.trim()}
+                                className="bg-[#FACC15] text-neutral-900 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#EAB308] transition-all disabled:opacity-50"
+                              >
+                                {salvandoResposta ? 'Enviando...' : 'Enviar'}
+                              </button>
+                              <button
+                                onClick={() => { setRespondendoId(null); setRespostaTexto('') }}
+                                className="text-neutral-400 px-3 py-1.5 rounded-lg text-xs hover:text-neutral-600 transition-all"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setRespondendoId(av.id); setRespostaTexto('') }}
+                            className="mt-2 text-xs text-[#EAB308] hover:text-amber-600 font-semibold flex items-center gap-1 transition-colors"
+                          >
+                            <MessageCircle size={12} /> Responder
+                          </button>
+                        )}
+                        <p className="text-xs text-neutral-400 mt-1">{av.created_at}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  )
+}

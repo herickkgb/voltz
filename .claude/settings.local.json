@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(find C:/Users/jucef/Desktop/voltz/node_modules/tw-animate-css -name *.css)",
+      "Bash(grep -l border-border C:/Users/jucef/Desktop/voltz/node_modules/tw-animate-css/dist/*.css)",
+      "Bash(npx next:*)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
+    ]
+  }
+}

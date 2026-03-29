@@ -12,7 +12,7 @@ export { getMediaAvaliacao }
 function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
   const loc = row.localizacoes as Record<string, unknown> | Record<string, unknown>[] | null
   const locData = Array.isArray(loc) ? loc[0] : loc
-  const privados = Array.isArray(row.instrutores_dados_privados) ? row.instrutores_dados_privados[0] : (row.instrutores_dados_privados || {}) as any
+  const privados = (Array.isArray(row.instrutores_dados_privados) ? row.instrutores_dados_privados[0] : (row.instrutores_dados_privados || {})) as Record<string, string | undefined>
 
   return {
     id: row.id as string,

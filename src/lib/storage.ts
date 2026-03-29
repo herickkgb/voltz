@@ -1,4 +1,4 @@
-import { supabase, useMock } from './supabase'
+import { supabase } from './supabase'
 
 /**
  * Faz upload de documento para o Supabase Storage.
@@ -9,14 +9,6 @@ export async function uploadDocumento(
   arquivo: File,
   tipo: string
 ): Promise<{ url: string; nome_arquivo: string } | null> {
-  if (useMock) {
-    return {
-      url: `/docs/mock-${tipo}-${Date.now()}.pdf`,
-      nome_arquivo: arquivo.name,
-    }
-  }
-
-  if (!supabase) return null
 
   const extensao = arquivo.name.split('.').pop() || 'pdf'
   const nomeArquivo = `${userId}/${tipo}_${Date.now()}.${extensao}`
@@ -57,9 +49,6 @@ export async function uploadFoto(
   userId: string,
   arquivo: File
 ): Promise<string | null> {
-  if (useMock) return `https://i.pravatar.cc/150?u=${userId}`
-
-  if (!supabase) return null
 
   const extensao = arquivo.name.split('.').pop() || 'jpg'
   const nomeArquivo = `${userId}/perfil_${Date.now()}.${extensao}`
@@ -87,9 +76,6 @@ export async function uploadFoto(
  * Gera URL assinada para visualizar documento privado (admin).
  */
 export async function getDocumentoUrl(path: string): Promise<string | null> {
-  if (useMock) return path
-
-  if (!supabase) return null
 
   const { data, error } = await supabase.storage
     .from('documentos')

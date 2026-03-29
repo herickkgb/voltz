@@ -1,9 +1,12 @@
-import { supabase, useMock } from './supabase'
-import { mockInstrutores, getInstrutorBySlug as mockGetBySlug, getInstrutoresAprovados as mockGetAprovados, getMediaAvaliacao } from './mock-instrutores'
+import { supabase } from './supabase'
+
 import type { Instrutor, FiltrosBusca, StatusInstrutor } from '@/types'
 
 // Re-export para manter compatibilidade
-export { getMediaAvaliacao }
+export function getMediaAvaliacao(avaliacoes: { nota: number }[]): number {
+  if (!avaliacoes.length) return 0
+  return avaliacoes.reduce((acc, a) => acc + a.nota, 0) / avaliacoes.length
+}
 
 // ============================================
 // Helpers para mapear dados do Supabase → tipos do app
@@ -112,8 +115,6 @@ const INSTRUTOR_SELECT = `
 // ============================================
 
 export async function getInstrutoresAprovados(): Promise<Instrutor[]> {
-  if (useMock) return mockGetAprovados()
-
   const { data, error } = await supabase!
     .from('instrutores')
     .select(INSTRUTOR_SELECT)
@@ -129,8 +130,6 @@ export async function getInstrutoresAprovados(): Promise<Instrutor[]> {
 }
 
 export async function getInstrutorBySlug(slug: string): Promise<Instrutor | null> {
-  if (useMock) return mockGetBySlug(slug) || null
-
   const { data, error } = await supabase!
     .from('instrutores')
     .select(INSTRUTOR_SELECT)
@@ -143,45 +142,6 @@ export async function getInstrutorBySlug(slug: string): Promise<Instrutor | null
 }
 
 export async function buscarInstrutores(filtros: FiltrosBusca): Promise<Instrutor[]> {
-  if (useMock) {
-    let resultado = mockInstrutores.filter(i => i.status === 'aprovado')
-
-    if (filtros.cidade) {
-      const termo = filtros.cidade.toLowerCase()
-      resultado = resultado.filter(i =>
-        i.localizacao.cidade.toLowerCase().includes(termo) ||
-        i.localizacao.bairro.toLowerCase().includes(termo) ||
-        i.localizacao.estado.toLowerCase().includes(termo)
-      )
-    }
-    if (filtros.categorias?.length) {
-      resultado = resultado.filter(i =>
-        filtros.categorias!.some(c => i.categorias.includes(c))
-      )
-    }
-    if (filtros.precoMin) resultado = resultado.filter(i => i.preco_hora >= filtros.precoMin!)
-    if (filtros.precoMax) resultado = resultado.filter(i => i.preco_hora <= filtros.precoMax!)
-    if (filtros.avaliacaoMin) {
-      resultado = resultado.filter(i => {
-        const media = i.avaliacoes.reduce((acc, a) => acc + a.nota, 0) / (i.avaliacoes.length || 1)
-        return media >= filtros.avaliacaoMin!
-      })
-    }
-    if (filtros.anosExperienciaMin) resultado = resultado.filter(i => i.anos_experiencia >= filtros.anosExperienciaMin!)
-    if (filtros.genero) resultado = resultado.filter(i => i.genero === filtros.genero)
-    if (filtros.aceitaVeiculoCandidato) resultado = resultado.filter(i => i.aceita_veiculo_candidato)
-    if (filtros.ordenar === 'avaliacao') {
-      resultado.sort((a, b) => {
-        const mA = a.avaliacoes.reduce((acc, av) => acc + av.nota, 0) / (a.avaliacoes.length || 1)
-        const mB = b.avaliacoes.reduce((acc, av) => acc + av.nota, 0) / (b.avaliacoes.length || 1)
-        return mB - mA
-      })
-    } else if (filtros.ordenar === 'preco') {
-      resultado.sort((a, b) => a.preco_hora - b.preco_hora)
-    }
-    return resultado
-  }
-
   // Supabase query
   let query = supabase!
     .from('instrutores')
@@ -237,8 +197,6 @@ export async function buscarInstrutores(filtros: FiltrosBusca): Promise<Instruto
 // ============================================
 
 export async function getTodosInstrutores(): Promise<Instrutor[]> {
-  if (useMock) return [...mockInstrutores]
-
   const { data, error } = await supabase!
     .from('instrutores')
     .select(INSTRUTOR_SELECT)
@@ -257,8 +215,6 @@ export async function atualizarStatusInstrutor(
   status: StatusInstrutor,
   motivo_recusa?: string
 ): Promise<boolean> {
-  if (useMock) return true
-
   const updateData: Record<string, unknown> = { status }
   if (motivo_recusa !== undefined) updateData.motivo_recusa = motivo_recusa
   if (status === 'aprovado') updateData.motivo_recusa = null
@@ -280,10 +236,6 @@ export async function atualizarStatusInstrutor(
 // ============================================
 
 export async function getInstrutorPorUserId(userId: string): Promise<Instrutor | null> {
-  if (useMock) {
-    return mockInstrutores.find(i => i.email === userId) || mockInstrutores[0]
-  }
-
   const { data, error } = await supabase!
     .from('instrutores')
     .select(INSTRUTOR_SELECT)
@@ -309,8 +261,6 @@ export async function atualizarPerfilInstrutor(
     aceita_veiculo_candidato?: boolean
   }
 ): Promise<boolean> {
-  if (useMock) return true
-
   const { telefone, ...resto } = dados
   const { error } = await supabase!
     .from('instrutores')
@@ -333,8 +283,6 @@ export async function atualizarPerfilInstrutor(
 }
 
 export async function atualizarFotoPerfil(id: string, foto_url: string): Promise<boolean> {
-  if (useMock) return true
-
   const { error } = await supabase!
     .from('instrutores')
     .update({ foto_url })
@@ -351,8 +299,6 @@ export async function atualizarLocalizacao(
   instrutorId: string,
   dados: { cep: string; cidade: string; estado: string; bairro: string; raio_km: number }
 ): Promise<boolean> {
-  if (useMock) return true
-
   const { error } = await supabase!
     .from('localizacoes')
     .upsert({ instrutor_id: instrutorId, ...dados }, { onConflict: 'instrutor_id' })
@@ -388,8 +334,6 @@ export async function criarInstrutor(
     slug: string
   }
 ): Promise<{ id: string } | null> {
-  if (useMock) return { id: 'mock-new' }
-
   const { cpf, cnpj, data_nascimento, telefone, email, registro_senatran, ...publicDados } = dados
 
   const { data, error } = await supabase!
@@ -429,8 +373,6 @@ export async function criarLocalizacao(
   instrutorId: string,
   dados: { cep: string; cidade: string; estado: string; bairro: string }
 ): Promise<boolean> {
-  if (useMock) return true
-
   const { error } = await supabase!
     .from('localizacoes')
     .insert({ instrutor_id: instrutorId, ...dados })
@@ -446,8 +388,6 @@ export async function criarVeiculo(
   instrutorId: string,
   dados: { marca: string; modelo: string; ano: number; cambio: 'manual' | 'automatico' }
 ): Promise<boolean> {
-  if (useMock) return true
-
   const { error } = await supabase!
     .from('veiculos')
     .insert({ instrutor_id: instrutorId, ...dados })
@@ -463,8 +403,6 @@ export async function criarDocumento(
   instrutorId: string,
   dados: { tipo: string; nome_arquivo: string; url: string }
 ): Promise<boolean> {
-  if (useMock) return true
-
   const { error } = await supabase!
     .from('documentos')
     .insert({ instrutor_id: instrutorId, ...dados })
@@ -480,8 +418,6 @@ export async function atualizarDocumento(
   docId: string,
   dados: { nome_arquivo: string; url: string }
 ): Promise<boolean> {
-  if (useMock) return true
-
   const { error } = await supabase!
     .from('documentos')
     .update({ ...dados, enviado_em: new Date().toISOString() })
@@ -495,8 +431,6 @@ export async function atualizarDocumento(
 }
 
 export async function solicitarNovaAnalise(id: string): Promise<boolean> {
-  if (useMock) return true
-
   const { error } = await supabase!
     .from('instrutores')
     .update({ status: 'em_analise', motivo_recusa: null })
@@ -511,8 +445,6 @@ export async function solicitarNovaAnalise(id: string): Promise<boolean> {
 // ============================================
 
 export async function getSlugsAprovados(): Promise<string[]> {
-  if (useMock) return mockGetAprovados().map(i => i.slug)
-
   const { data, error } = await supabase!
     .from('instrutores')
     .select('slug')

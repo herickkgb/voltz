@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { supabase, useMock } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { getInstrutorPorUserId } from '@/lib/db'
 import type { Instrutor } from '@/types'
 
@@ -53,20 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Restaurar sessão
   useEffect(() => {
     const restaurarSessao = async () => {
-      if (useMock) {
-        // Mock: restaurar do localStorage
-        const saved = localStorage.getItem('voltz_user')
-        if (saved) {
-          try {
-            setUser(JSON.parse(saved))
-          } catch {
-            localStorage.removeItem('voltz_user')
-          }
-        }
-        setIsReady(true)
-        return
-      }
-
       // Supabase: verificar sessão ativa
       const { data: { session } } = await supabase!.auth.getSession()
 
@@ -85,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restaurarSessao()
 
     // Escutar mudanças de autenticação (login/logout em outra aba)
-    if (!useMock && supabase) {
+    if (supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const meta = session.user.user_metadata || {}
@@ -106,44 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Login
   const login = useCallback(async (email: string, senha: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
-
-    if (useMock) {
-      // Mock login
-      await new Promise((r) => setTimeout(r, 800))
-
-      if (email === 'admin@voltz.com.br') {
-        const adminUser: AuthUser = {
-          id: 'admin-1',
-          nome: 'Administrador',
-          email: 'admin@voltz.com.br',
-          role: 'admin',
-        }
-        setUser(adminUser)
-        localStorage.setItem('voltz_user', JSON.stringify(adminUser))
-        setIsLoading(false)
-        return { success: true }
-      }
-
-      const { mockInstrutores } = await import('@/lib/mock-instrutores')
-      const instrutor = mockInstrutores.find((i) => i.email === email)
-
-      if (instrutor) {
-        const instrutorUser: AuthUser = {
-          id: instrutor.id,
-          nome: instrutor.nome,
-          email: instrutor.email,
-          role: 'instrutor',
-          instrutor,
-        }
-        setUser(instrutorUser)
-        localStorage.setItem('voltz_user', JSON.stringify(instrutorUser))
-        setIsLoading(false)
-        return { success: true }
-      }
-
-      setIsLoading(false)
-      return { success: false, error: 'E-mail ou senha inválidos' }
-    }
 
     // Supabase Auth
     const { data, error } = await supabase!.auth.signInWithPassword({ email, password: senha })
@@ -172,20 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Registrar novo usuário
   const registrar = useCallback(async (email: string, senha: string, nome: string): Promise<{ success: boolean; error?: string; userId?: string }> => {
     setIsLoading(true)
-
-    if (useMock) {
-      await new Promise((r) => setTimeout(r, 800))
-      const mockUser: AuthUser = {
-        id: `mock-${Date.now()}`,
-        nome,
-        email,
-        role: 'instrutor',
-      }
-      setUser(mockUser)
-      localStorage.setItem('voltz_user', JSON.stringify(mockUser))
-      setIsLoading(false)
-      return { success: true, userId: mockUser.id }
-    }
 
     const { data, error } = await supabase!.auth.signUp({
       email,
@@ -226,13 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (instrutor) {
       const updated = { ...user, instrutor, nome: instrutor.nome }
       setUser(updated)
-      if (useMock) localStorage.setItem('voltz_user', JSON.stringify(updated))
     }
   }, [user])
 
   // Logout
   const logout = useCallback(async () => {
-    if (!useMock && supabase) {
+    if (supabase) {
       await supabase.auth.signOut()
     }
     setUser(null)

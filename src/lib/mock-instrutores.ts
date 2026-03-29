@@ -1,6 +1,6 @@
 import { Instrutor } from '@/types'
 
-export const mockInstrutores: Instrutor[] = [
+const rawMock: any[] = [
   {
     id: '1',
     nome: 'Carlos Eduardo Silva',
@@ -524,6 +524,8 @@ export const mockInstrutores: Instrutor[] = [
     avaliacoes: [],
   },
 ]
+
+export const mockInstrutores: Instrutor[] = rawMock as Instrutor[]
 
 export function getInstrutorBySlug(slug: string): Instrutor | undefined {
   return mockInstrutores.find(i => i.slug === slug)

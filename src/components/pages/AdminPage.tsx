@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { useAuth } from '@/contexts/AuthContext'
-import { getTodosInstrutores, atualizarStatusInstrutor } from '@/lib/db'
+import { getTodosInstrutores, atualizarStatusInstrutor, atualizarStatusDocumento } from '@/lib/db'
 import { toast } from 'sonner'
 import type { Instrutor, StatusInstrutor } from '@/types'
 import {
@@ -41,7 +40,6 @@ const statusIcons: Record<StatusInstrutor, typeof Clock> = {
 
 export default function AdminPageClient() {
   const { user, logout, isAdmin, isReady } = useAuth()
-  const router = useRouter()
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState<StatusInstrutor | 'todos'>('todos')
   const [instrutorSelecionado, setInstrutorSelecionado] = useState<Instrutor | null>(null)
@@ -50,16 +48,26 @@ export default function AdminPageClient() {
   const [instrutores, setInstrutores] = useState<Instrutor[]>([])
   const [carregando, setCarregando] = useState(true)
 
-  useEffect(() => {
+  const carregarInstrutores = () => {
     getTodosInstrutores()
       .then(data => {
         setInstrutores(data)
         setCarregando(false)
+        // Update selected instructor if viewing one
+        if (instrutorSelecionado) {
+          const atualizado = data.find(i => i.id === instrutorSelecionado.id)
+          if (atualizado) setInstrutorSelecionado(atualizado)
+        }
       })
       .catch(() => {
         toast.error('Erro ao carregar instrutores. Verifique sua conexão.')
         setCarregando(false)
       })
+  }
+
+  useEffect(() => {
+    carregarInstrutores()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const instrutoresFiltrados = useMemo(() => {
@@ -183,9 +191,9 @@ export default function AdminPageClient() {
     window.open(`https://wa.me/55${numero}?text=${mensagem}`, '_blank')
   }
 
-  const handleLogout = () => {
-    logout()
-    router.push('/')
+  const handleLogout = async () => {
+    await logout()
+    window.location.href = '/'
   }
 
   return (
@@ -458,28 +466,86 @@ export default function AdminPageClient() {
                 </h4>
                 <div className="space-y-2">
                   {instrutorSelecionado.documentos.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <FileText size={14} className="text-neutral-400" />
-                        <div>
-                          <span className="text-sm block">{doc.nome_arquivo}</span>
-                          <span className="text-xs text-neutral-400">
-                            {doc.tipo === 'certificado_senatran' && 'Certificado SENATRAN'}
-                            {doc.tipo === 'comprovante_residencia' && 'Comprovante de Residência'}
-                            {doc.tipo === 'cnh' && 'CNH'}
-                            {doc.tipo === 'foto_veiculo' && 'Foto do Veículo'}
-                          </span>
+                    <div key={doc.id} className={`rounded-lg px-3 py-2 border ${
+                      doc.status === 'recusado' ? 'bg-red-50 border-red-200' :
+                      doc.status === 'pendente' ? 'bg-amber-50 border-amber-200' :
+                      'bg-neutral-50 border-transparent'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <FileText size={14} className={`flex-shrink-0 ${
+                            doc.status === 'recusado' ? 'text-red-400' :
+                            doc.status === 'pendente' ? 'text-amber-400' :
+                            'text-green-500'
+                          }`} />
+                          <div className="min-w-0">
+                            <span className="text-sm block truncate">{doc.nome_arquivo}</span>
+                            <span className="text-xs text-neutral-400">
+                              {doc.tipo === 'certificado_senatran' && 'Certificado SENATRAN'}
+                              {doc.tipo === 'comprovante_residencia' && 'Comprovante de Residência'}
+                              {doc.tipo === 'cnh' && 'CNH'}
+                              {doc.tipo === 'foto_veiculo' && 'Foto do Veículo'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                          >
+                            <Eye size={12} /> Ver
+                          </a>
+                          {doc.status !== 'aprovado' && (
+                            <button
+                              onClick={async () => {
+                                const ok = await atualizarStatusDocumento(doc.id, 'aprovado')
+                                if (ok) {
+                                  toast.success('Documento aprovado!')
+                                  carregarInstrutores()
+                                }
+                              }}
+                              className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                              title="Aprovar documento"
+                            >
+                              <CheckCircle size={12} />
+                            </button>
+                          )}
+                          {doc.status !== 'recusado' && (
+                            <button
+                              onClick={async () => {
+                                const motivo = prompt('Motivo da recusa do documento:')
+                                if (motivo === null) return
+                                const ok = await atualizarStatusDocumento(doc.id, 'recusado', motivo || 'Documento inválido')
+                                if (ok) {
+                                  toast.success('Documento recusado.')
+                                  carregarInstrutores()
+                                }
+                              }}
+                              className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                              title="Recusar documento"
+                            >
+                              <XCircle size={12} />
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        <Eye size={12} />
-                        Ver
-                      </a>
+                      {doc.status === 'aprovado' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 mt-1">
+                          <CheckCircle size={10} /> Aprovado
+                        </span>
+                      )}
+                      {doc.status === 'pendente' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 mt-1">
+                          <Clock size={10} /> Aguardando validação
+                        </span>
+                      )}
+                      {doc.status === 'recusado' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 mt-1">
+                          <XCircle size={10} /> Recusado{doc.motivo_recusa ? `: ${doc.motivo_recusa}` : ''}
+                        </span>
+                      )}
                     </div>
                   ))}
                   {instrutorSelecionado.documentos.length === 0 && (

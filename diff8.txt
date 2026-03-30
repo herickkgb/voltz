@@ -1,0 +1,1123 @@
+﻿diff --git a/clean_db.js b/clean_db.js
+deleted file mode 100644
+index 34e7e9f..0000000
+--- a/clean_db.js
++++ /dev/null
+@@ -1,40 +0,0 @@
+-const fs = require('fs');
+-let content = fs.readFileSync('src/lib/db.ts', 'utf8');
+-
+-// Replace top imports
+-content = content.replace("import { supabase, useMock } from './supabase'", "import { supabase } from './supabase'");
+-content = content.replace(
+-  "import { mockInstrutores, getInstrutorBySlug as mockGetBySlug, getInstrutoresAprovados as mockGetAprovados, getMediaAvaliacao } from './mock-instrutores'",
+-  ""
+-);
+-
+-content = content.replace(
+-  "// Re-export para manter compatibilidade\nexport { getMediaAvaliacao }",
+-  `// Re-export para manter compatibilidade
+-export function getMediaAvaliacao(avaliacoes: { nota: number }[]): number {
+-  if (!avaliacoes.length) return 0
+-  return avaliacoes.reduce((acc, a) => acc + a.nota, 0) / avaliacoes.length
+-}`
+-);
+-
+-// Remove mock branches
+-content = content.replace(/  if \(useMock\) return true\n\n/g, "");
+-content = content.replace(/  if \(useMock\) return mockGetAprovados\(\)\n\n/g, "");
+-content = content.replace(/  if \(useMock\) return mockGetBySlug\(slug\) \|\| null\n\n/g, "");
+-content = content.replace(/  if \(useMock\) return \[\.\.\.mockInstrutores\]\n\n/g, "");
+-content = content.replace(/  if \(useMock\) return \{ id: 'mock-new' \}\n\n/g, "");
+-content = content.replace(/  if \(useMock\) return false\n/g, "");
+-
+-content = content.replace(/\n  if \(useMock\) \{\n    return mockInstrutores\.find\(i => i\.email === userId\) \|\| mockInstrutores\[0\]\n  \}\n/g, "");
+-
+-// Complex block for buscarInstrutores
+-const mockBlockStart = content.indexOf('  if (useMock) {');
+-if (mockBlockStart !== -1) {
+-  const mockBlockEnd = content.indexOf('  // Supabase query');
+-  if (mockBlockEnd !== -1) {
+-    content = content.slice(0, mockBlockStart) + content.slice(mockBlockEnd);
+-  }
+-}
+-
+-fs.writeFileSync('src/lib/db.ts', content);
+-console.log('Done cleaning db.ts');
+diff --git a/clean_mock.js b/clean_mock.js
+deleted file mode 100644
+index 2c8956b..0000000
+--- a/clean_mock.js
++++ /dev/null
+@@ -1,15 +0,0 @@
+-const fs = require('fs');
+-
+-function processFile(path) {
+-  let content = fs.readFileSync(path, 'utf8');
+-
+-  // Strip imports of useMock
+-  content = content.replace(/, useMock /g, ' ');
+-  content = content.replace(/import \{ supabase, useMock \} from '\.\/supabase'/g, "import { supabase } from './supabase'");
+-  content = content.replace(/import \{ supabase, useMock \} from '@\/lib\/supabase'/g, "import { supabase } from '@/lib/supabase'");
+-
+-  // Strip block useMock
+-  // This simplistic approach might fail on nested blocks, let's use regex for specific patterns.
+-
+-  fs.writeFileSync(path, content);
+-}
+diff --git a/src/components/layout/Navbar.tsx b/src/components/layout/Navbar.tsx
+index 9b68b8e..d21d2e8 100644
+--- a/src/components/layout/Navbar.tsx
++++ b/src/components/layout/Navbar.tsx
+@@ -12,8 +12,8 @@ export function Navbar() {
+   const { user, isReady, isAdmin, isInstrutor, logout } = useAuth()
+   const router = useRouter()
+ 
+-  const handleLogout = () => {
+-    logout()
++  const handleLogout = async () => {
++    await logout()
+     setMobileOpen(false)
+     router.push('/')
+   }
+diff --git a/src/components/pages/AdminPage.tsx b/src/components/pages/AdminPage.tsx
+index f59a517..f7a9246 100644
+--- a/src/components/pages/AdminPage.tsx
++++ b/src/components/pages/AdminPage.tsx
+@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
+ import { Navbar } from '@/components/layout/Navbar'
+ import { Footer } from '@/components/layout/Footer'
+ import { useAuth } from '@/contexts/AuthContext'
+-import { getTodosInstrutores, atualizarStatusInstrutor } from '@/lib/db'
++import { getTodosInstrutores, atualizarStatusInstrutor, atualizarStatusDocumento } from '@/lib/db'
+ import { toast } from 'sonner'
+ import type { Instrutor, StatusInstrutor } from '@/types'
+ import {
+@@ -50,16 +50,25 @@ export default function AdminPageClient() {
+   const [instrutores, setInstrutores] = useState<Instrutor[]>([])
+   const [carregando, setCarregando] = useState(true)
+ 
+-  useEffect(() => {
++  const carregarInstrutores = () => {
+     getTodosInstrutores()
+       .then(data => {
+         setInstrutores(data)
+         setCarregando(false)
++        // Update selected instructor if viewing one
++        if (instrutorSelecionado) {
++          const atualizado = data.find(i => i.id === instrutorSelecionado.id)
++          if (atualizado) setInstrutorSelecionado(atualizado)
++        }
+       })
+       .catch(() => {
+         toast.error('Erro ao carregar instrutores. Verifique sua conexão.')
+         setCarregando(false)
+       })
++  }
++
++  useEffect(() => {
++    carregarInstrutores()
+   }, [])
+ 
+   const instrutoresFiltrados = useMemo(() => {
+@@ -183,8 +192,8 @@ export default function AdminPageClient() {
+     window.open(`https://wa.me/55${numero}?text=${mensagem}`, '_blank')
+   }
+ 
+-  const handleLogout = () => {
+-    logout()
++  const handleLogout = async () => {
++    await logout()
+     router.push('/')
+   }
+ 
+@@ -458,28 +467,86 @@ export default function AdminPageClient() {
+                 </h4>
+                 <div className="space-y-2">
+                   {instrutorSelecionado.documentos.map((doc) => (
+-                    <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-lg px-3 py-2">
+-                      <div className="flex items-center gap-2">
+-                        <FileText size={14} className="text-neutral-400" />
+-                        <div>
+-                          <span className="text-sm block">{doc.nome_arquivo}</span>
+-                          <span className="text-xs text-neutral-400">
+-                            {doc.tipo === 'certificado_senatran' && 'Certificado SENATRAN'}
+-                            {doc.tipo === 'comprovante_residencia' && 'Comprovante de Residência'}
+-                            {doc.tipo === 'cnh' && 'CNH'}
+-                            {doc.tipo === 'foto_veiculo' && 'Foto do Veículo'}
+-                          </span>
++                    <div key={doc.id} className={`rounded-lg px-3 py-2 border ${
++                      doc.status === 'recusado' ? 'bg-red-50 border-red-200' :
++                      doc.status === 'pendente' ? 'bg-amber-50 border-amber-200' :
++                      'bg-neutral-50 border-transparent'
++                    }`}>
++                      <div className="flex items-center justify-between">
++                        <div className="flex items-center gap-2 min-w-0 flex-1">
++                          <FileText size={14} className={`flex-shrink-0 ${
++                            doc.status === 'recusado' ? 'text-red-400' :
++                            doc.status === 'pendente' ? 'text-amber-400' :
++                            'text-green-500'
++                          }`} />
++                          <div className="min-w-0">
++                            <span className="text-sm block truncate">{doc.nome_arquivo}</span>
++                            <span className="text-xs text-neutral-400">
++                              {doc.tipo === 'certificado_senatran' && 'Certificado SENATRAN'}
++                              {doc.tipo === 'comprovante_residencia' && 'Comprovante de Residência'}
++                              {doc.tipo === 'cnh' && 'CNH'}
++                              {doc.tipo === 'foto_veiculo' && 'Foto do Veículo'}
++                            </span>
++                          </div>
++                        </div>
++                        <div className="flex items-center gap-1.5 flex-shrink-0">
++                          <a
++                            href={doc.url}
++                            target="_blank"
++                            rel="noopener noreferrer"
++                            className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors"
++                          >
++                            <Eye size={12} /> Ver
++                          </a>
++                          {doc.status !== 'aprovado' && (
++                            <button
++                              onClick={async () => {
++                                const ok = await atualizarStatusDocumento(doc.id, 'aprovado')
++                                if (ok) {
++                                  toast.success('Documento aprovado!')
++                                  carregarInstrutores()
++                                }
++                              }}
++                              className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors"
++                              title="Aprovar documento"
++                            >
++                              <CheckCircle size={12} />
++                            </button>
++                          )}
++                          {doc.status !== 'recusado' && (
++                            <button
++                              onClick={async () => {
++                                const motivo = prompt('Motivo da recusa do documento:')
++                                if (motivo === null) return
++                                const ok = await atualizarStatusDocumento(doc.id, 'recusado', motivo || 'Documento inválido')
++                                if (ok) {
++                                  toast.success('Documento recusado.')
++                                  carregarInstrutores()
++                                }
++                              }}
++                              className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
++                              title="Recusar documento"
++                            >
++                              <XCircle size={12} />
++                            </button>
++                          )}
+                         </div>
+                       </div>
+-                      <a
+-                        href={doc.url}
+-                        target="_blank"
+-                        rel="noopener noreferrer"
+-                        className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+-                      >
+-                        <Eye size={12} />
+-                        Ver
+-                      </a>
++                      {doc.status === 'aprovado' && (
++                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 mt-1">
++                          <CheckCircle size={10} /> Aprovado
++                        </span>
++                      )}
++                      {doc.status === 'pendente' && (
++                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 mt-1">
++                          <Clock size={10} /> Aguardando validação
++                        </span>
++                      )}
++                      {doc.status === 'recusado' && (
++                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 mt-1">
++                          <XCircle size={10} /> Recusado{doc.motivo_recusa ? `: ${doc.motivo_recusa}` : ''}
++                        </span>
++                      )}
+                     </div>
+                   ))}
+                   {instrutorSelecionado.documentos.length === 0 && (
+diff --git a/src/components/pages/HomePage.tsx b/src/components/pages/HomePage.tsx
+index 8392e5d..ed443f4 100644
+--- a/src/components/pages/HomePage.tsx
++++ b/src/components/pages/HomePage.tsx
+@@ -7,9 +7,10 @@ import { Navbar } from '@/components/layout/Navbar'
+ import { Footer } from '@/components/layout/Footer'
+ import { StarRating } from '@/components/shared/StarRating'
+ import { CategoryBadge } from '@/components/shared/CategoryBadge'
+-import { getInstrutoresAprovados, getMediaAvaliacao } from '@/lib/db'
++import { getInstrutoresAprovados, getMediaAvaliacao, getEstatisticasGlobais } from '@/lib/db'
++import type { CidadeComContagem } from '@/lib/db'
+ import type { Instrutor } from '@/types'
+-import { Search, MapPin, Shield, Zap, ChevronDown, ChevronUp, Award } from 'lucide-react'
++import { Search, MapPin, Shield, Zap, ChevronDown, ChevronUp, Award, Users } from 'lucide-react'
+ 
+ const fadeUp = {
+   hidden: { opacity: 0, y: 30 },
+@@ -25,23 +26,73 @@ export default function HomePage() {
+   const [faqAberto, setFaqAberto] = useState<number | null>(null)
+   const [instrutoresDestaque, setInstrutoresDestaque] = useState<Instrutor[]>([])
+ 
++  const [estatisticas, setEstatisticas] = useState({ instrutores: 0, alunos: 0, media: '0', cidades: 0, listaCidades: [] as CidadeComContagem[] })
++  const [regiaoUsuario, setRegiaoUsuario] = useState('')
++  const [, setBuscandoLocal] = useState(true)
++  const [showSugestoes, setShowSugestoes] = useState(false)
++
++  const sugestoesFiltradas = cidadeBusca.length >= 2
++    ? estatisticas.listaCidades.filter(c =>
++        c.label.toLowerCase().includes(cidadeBusca.toLowerCase()) ||
++        c.cidade.toLowerCase().includes(cidadeBusca.toLowerCase())
++      ).slice(0, 8)
++    : []
++
++  const cidadeSemResultado = cidadeBusca.length >= 3 && sugestoesFiltradas.length === 0
++
+   useEffect(() => {
+-    getInstrutoresAprovados().then(lista => setInstrutoresDestaque(lista.slice(0, 4)))
++    getEstatisticasGlobais().then(setEstatisticas)
++
++    // Pegar localização
++    if ("geolocation" in navigator) {
++      navigator.geolocation.getCurrentPosition(async (position) => {
++        try {
++          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`)
++          const data = await res.json()
++          const city = data.address.city || data.address.town || data.address.village
++          if (city) {
++            setRegiaoUsuario(city)
++            setCidadeBusca(city)
++          }
++        } catch {}
++        setBuscandoLocal(false)
++      }, () => {
++        setBuscandoLocal(false)
++      })
++    } else {
++      setBuscandoLocal(false)
++    }
+   }, [])
+ 
++  useEffect(() => {
++    getInstrutoresAprovados().then(lista => {
++      if (regiaoUsuario) {
++        const perto = lista.filter(i => i.localizacao.cidade.toLowerCase() === regiaoUsuario.toLowerCase())
++        if (perto.length > 0) {
++          setInstrutoresDestaque(perto.slice(0, 4))
++          return
++        }
++      }
++      setInstrutoresDestaque(lista.slice(0, 4))
++    })
++  }, [regiaoUsuario])
++
++
+   const etapas = [
+     { icon: Search, titulo: 'Busque', descricao: 'Pesquise instrutores autônomos credenciados na sua cidade.' },
+     { icon: Award, titulo: 'Compare', descricao: 'Veja avaliações, preços e disponibilidade de cada instrutor.' },
+     { icon: Zap, titulo: 'Conecte-se', descricao: 'Entre em contato direto via WhatsApp e agende sua aula.' },
+   ]
+ 
++  
+   const stats = [
+-    { valor: '8+', label: 'Instrutores Credenciados' },
+-    { valor: '4.000+', label: 'Alunos Formados' },
+-    { valor: '4.7', label: 'Avaliação Média' },
+-    { valor: '7', label: 'Cidades Atendidas' },
++    { valor: `${estatisticas.instrutores}`, label: 'Instrutores Credenciados' },
++    { valor: `${estatisticas.alunos.toLocaleString('pt-BR')}`, label: 'Alunos Formados' },
++    { valor: `${estatisticas.media}`, label: 'Avaliação Média' },
++    { valor: `${estatisticas.cidades}`, label: 'Cidades Atendidas' },
+   ]
+ 
++
+   const faqs = [
+     {
+       pergunta: 'O que é a nova lei do instrutor autônomo?',
+@@ -93,14 +144,54 @@ export default function HomePage() {
+             {/* Search Bar */}
+             <div className="flex flex-col sm:flex-row gap-2 md:gap-3 max-w-xl mx-auto">
+               <div className="relative flex-1">
+-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
++                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 z-10" size={18} />
+                 <input
+                   type="text"
+                   placeholder="Digite sua cidade..."
+                   value={cidadeBusca}
+-                  onChange={(e) => setCidadeBusca(e.target.value)}
++                  onChange={(e) => { setCidadeBusca(e.target.value); setShowSugestoes(true) }}
++                  onFocus={() => setShowSugestoes(true)}
++                  onBlur={() => setTimeout(() => setShowSugestoes(false), 200)}
+                   className="w-full bg-white border border-neutral-200 rounded-xl pl-11 pr-4 py-3 md:py-4 text-sm md:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all shadow-sm"
+                 />
++
++                {/* Dropdown de sugestões */}
++                {showSugestoes && cidadeBusca.length >= 2 && (
++                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-72 overflow-y-auto">
++                    {sugestoesFiltradas.length > 0 ? (
++                      sugestoesFiltradas.map((c) => (
++                        <button
++                          key={c.label}
++                          type="button"
++                          onMouseDown={(e) => e.preventDefault()}
++                          onClick={() => {
++                            setCidadeBusca(c.cidade)
++                            setShowSugestoes(false)
++                          }}
++                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-yellow-50 transition-colors text-left border-b border-neutral-100 last:border-0"
++                        >
++                          <div className="flex items-center gap-2.5">
++                            <MapPin size={14} className="text-neutral-300 flex-shrink-0" />
++                            <div>
++                              <span className="text-sm font-medium text-neutral-900">{c.cidade}</span>
++                              {c.estado && <span className="text-sm text-neutral-400"> - {c.estado}</span>}
++                            </div>
++                          </div>
++                          <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0">
++                            <Users size={10} />
++                            {c.instrutores} {c.instrutores === 1 ? 'instrutor' : 'instrutores'}
++                          </span>
++                        </button>
++                      ))
++                    ) : cidadeSemResultado ? (
++                      <div className="px-4 py-4 text-center">
++                        <p className="text-sm text-neutral-500">Nenhum instrutor encontrado em</p>
++                        <p className="text-sm font-semibold text-neutral-700">&quot;{cidadeBusca}&quot;</p>
++                        <p className="text-xs text-neutral-400 mt-1">Tente outra cidade ou verifique a ortografia</p>
++                      </div>
++                    ) : null}
++                  </div>
++                )}
+               </div>
+               <Link
+                 href={`/buscar${cidadeBusca ? `?cidade=${encodeURIComponent(cidadeBusca)}` : ''}`}
+@@ -114,68 +205,6 @@ export default function HomePage() {
+         </div>
+       </section>
+ 
+-      {/* Stats */}
+-      <section className="py-8 md:py-12 border-y border-neutral-100">
+-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+-          <div className="grid grid-cols-4 gap-3 md:gap-8">
+-            {stats.map((stat, i) => (
+-              <motion.div
+-                key={stat.label}
+-                custom={i}
+-                initial="hidden"
+-                whileInView="visible"
+-                viewport={{ once: true }}
+-                variants={fadeUp}
+-                className="text-center"
+-              >
+-                <div className="text-2xl md:text-4xl font-bold text-[#EAB308]">{stat.valor}</div>
+-                <div className="text-neutral-500 text-[10px] md:text-sm mt-0.5 md:mt-1 leading-tight">{stat.label}</div>
+-              </motion.div>
+-            ))}
+-          </div>
+-        </div>
+-      </section>
+-
+-      {/* Como Funciona */}
+-      <section id="como-funciona" className="py-12 md:py-28">
+-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+-          <motion.div
+-            initial="hidden"
+-            whileInView="visible"
+-            viewport={{ once: true }}
+-            variants={fadeUp}
+-            custom={0}
+-            className="text-center mb-8 md:mb-16"
+-          >
+-            <h2 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Como Funciona</h2>
+-            <p className="text-neutral-500 text-sm md:text-lg max-w-2xl mx-auto">
+-              Em 3 passos simples você encontra o instrutor ideal para sua habilitação.
+-            </p>
+-          </motion.div>
+-
+-          <div className="grid grid-cols-3 md:grid-cols-3 gap-3 md:gap-8">
+-            {etapas.map((etapa, i) => (
+-              <motion.div
+-                key={etapa.titulo}
+-                custom={i + 1}
+-                initial="hidden"
+-                whileInView="visible"
+-                viewport={{ once: true }}
+-                variants={fadeUp}
+-                className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-8 text-center hover:border-[#FACC15] hover:shadow-lg hover:shadow-yellow-400/10 transition-all group"
+-              >
+-                <div className="w-10 h-10 md:w-16 md:h-16 bg-[#FACC15]/10 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto mb-3 md:mb-6 group-hover:bg-[#FACC15]/20 transition-colors">
+-                  <etapa.icon className="text-[#EAB308]" size={20} />
+-                </div>
+-                <div className="text-[10px] md:text-sm font-bold text-[#EAB308] mb-1 md:mb-2">Passo {i + 1}</div>
+-                <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-3">{etapa.titulo}</h3>
+-                <p className="text-neutral-500 text-[11px] md:text-base leading-snug md:leading-relaxed">{etapa.descricao}</p>
+-              </motion.div>
+-            ))}
+-          </div>
+-        </div>
+-      </section>
+-
+       {/* Instrutores em Destaque */}
+       <section className="py-12 md:py-20 bg-neutral-50">
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+@@ -187,7 +216,7 @@ export default function HomePage() {
+             custom={0}
+             className="text-center mb-6 md:mb-16"
+           >
+-            <h2 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Instrutores em Destaque</h2>
++            <h2 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Instrutores em Destaque {regiaoUsuario ? `na região de ${regiaoUsuario}` : ""}</h2>
+             <p className="text-neutral-500 text-sm md:text-lg max-w-2xl mx-auto">
+               Profissionais bem avaliados e prontos para te ajudar.
+             </p>
+@@ -249,6 +278,70 @@ export default function HomePage() {
+         </div>
+       </section>
+ 
++      {/* Stats */}
++      <section className="py-8 md:py-12 border-y border-neutral-100">
++        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
++          <div className="grid grid-cols-4 gap-3 md:gap-8">
++            {stats.map((stat, i) => (
++              <motion.div
++                key={stat.label}
++                custom={i}
++                initial="hidden"
++                whileInView="visible"
++                viewport={{ once: true }}
++                variants={fadeUp}
++                className="text-center"
++              >
++                <div className="text-2xl md:text-4xl font-bold text-[#EAB308]">{stat.valor}</div>
++                <div className="text-neutral-500 text-[10px] md:text-sm mt-0.5 md:mt-1 leading-tight">{stat.label}</div>
++              </motion.div>
++            ))}
++          </div>
++        </div>
++      </section>
++
++      {/* Como Funciona */}
++      <section id="como-funciona" className="py-12 md:py-28">
++        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
++          <motion.div
++            initial="hidden"
++            whileInView="visible"
++            viewport={{ once: true }}
++            variants={fadeUp}
++            custom={0}
++            className="text-center mb-8 md:mb-16"
++          >
++            <h2 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Como Funciona</h2>
++            <p className="text-neutral-500 text-sm md:text-lg max-w-2xl mx-auto">
++              Em 3 passos simples você encontra o instrutor ideal para sua habilitação.
++            </p>
++          </motion.div>
++
++          <div className="grid grid-cols-3 md:grid-cols-3 gap-3 md:gap-8">
++            {etapas.map((etapa, i) => (
++              <motion.div
++                key={etapa.titulo}
++                custom={i + 1}
++                initial="hidden"
++                whileInView="visible"
++                viewport={{ once: true }}
++                variants={fadeUp}
++                className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-8 text-center hover:border-[#FACC15] hover:shadow-lg hover:shadow-yellow-400/10 transition-all group"
++              >
++                <div className="w-10 h-10 md:w-16 md:h-16 bg-[#FACC15]/10 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto mb-3 md:mb-6 group-hover:bg-[#FACC15]/20 transition-colors">
++                  <etapa.icon className="text-[#EAB308]" size={20} />
++                </div>
++                <div className="text-[10px] md:text-sm font-bold text-[#EAB308] mb-1 md:mb-2">Passo {i + 1}</div>
++                <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-3">{etapa.titulo}</h3>
++                <p className="text-neutral-500 text-[11px] md:text-base leading-snug md:leading-relaxed">{etapa.descricao}</p>
++              </motion.div>
++            ))}
++          </div>
++        </div>
++      </section>
++
++      
++
+       {/* CTA Nova Lei */}
+       <section className="py-12 md:py-20">
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+diff --git a/src/components/pages/PainelInstrutorPage.tsx b/src/components/pages/PainelInstrutorPage.tsx
+index a3bba29..778dd33 100644
+--- a/src/components/pages/PainelInstrutorPage.tsx
++++ b/src/components/pages/PainelInstrutorPage.tsx
+@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
+ import { Navbar } from '@/components/layout/Navbar'
+ import { Footer } from '@/components/layout/Footer'
+ import { useAuth } from '@/contexts/AuthContext'
+-import { atualizarPerfilInstrutor, atualizarLocalizacao, atualizarFotoPerfil, solicitarNovaAnalise, atualizarDocumento } from '@/lib/db'
++import { atualizarPerfilInstrutor, atualizarLocalizacao, atualizarFotoPerfil, solicitarNovaAnalise, atualizarDocumento, criarDocumento, atualizarDisponibilidades } from '@/lib/db'
+ import { uploadFoto, uploadDocumento } from '@/lib/storage'
+ import { telefoneMask, cepMask } from '@/lib/validations'
+ import { toast } from 'sonner'
+@@ -35,9 +35,18 @@ import {
+   Headphones,
+   Plus,
+   Trash2,
++  Upload,
+   Camera,
++  Calendar,
+ } from 'lucide-react'
+ 
++const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
++const TURNOS = [
++  { id: 'manha', label: 'Manhã' },
++  { id: 'tarde', label: 'Tarde' },
++  { id: 'noite', label: 'Noite' }
++] as const;
++
+ const planos: { tipo: PlanoTipo; nome: string; preco: number; recursos: string[]; destaque: boolean }[] = [
+   {
+     tipo: 'premium',
+@@ -85,6 +94,7 @@ export default function PainelInstrutorPageClient() {
+   const [editRaioKm, setEditRaioKm] = useState('')
+   const [editAceitaVeiculo, setEditAceitaVeiculo] = useState(false)
+   const [editCategorias, setEditCategorias] = useState<string[]>([])
++  const [editDisponibilidades, setEditDisponibilidades] = useState<{dia_semana: number; turno: 'manha' | 'tarde' | 'noite'}[]>([])
+   const [editVeiculos, setEditVeiculos] = useState<{ marca: string; modelo: string; ano: string; cambio: string }[]>([])
+   const [respondendoId, setRespondendoId] = useState<string | null>(null)
+   const [respostaTexto, setRespostaTexto] = useState('')
+@@ -127,8 +137,8 @@ export default function PainelInstrutorPageClient() {
+ 
+   const inputClass = 'w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all'
+ 
+-  const handleLogout = () => {
+-    logout()
++  const handleLogout = async () => {
++    await logout()
+     router.push('/')
+   }
+ 
+@@ -143,6 +153,7 @@ export default function PainelInstrutorPageClient() {
+     setEditRaioKm(String(instrutor.localizacao.raio_km))
+     setEditAceitaVeiculo(instrutor.aceita_veiculo_candidato)
+     setEditCategorias([...instrutor.categorias])
++    setEditDisponibilidades(instrutor.disponibilidades.map(d => ({ dia_semana: d.dia_semana, turno: d.turno as 'manha' | 'tarde' | 'noite' })))
+     setEditVeiculos(instrutor.veiculos.map(v => ({ marca: v.marca, modelo: v.modelo, ano: String(v.ano), cambio: v.cambio })))
+     setEditando(true)
+   }
+@@ -182,6 +193,13 @@ export default function PainelInstrutorPageClient() {
+         return
+       }
+ 
++      const dispOk = await atualizarDisponibilidades(instrutor.id, editDisponibilidades)
++      if (!dispOk) {
++        toast.error('Erro ao salvar horários de disponibilidade.')
++        setSalvando(false)
++        return
++      }
++
+       await recarregarInstrutor()
+       setEditando(false)
+       toast.success('Alterações salvas! Seu perfil será revisado pela equipe antes de aparecer publicamente.')
+@@ -466,6 +484,20 @@ export default function PainelInstrutorPageClient() {
+                 </div>
+               )}
+ 
++              {/* Dicas Gerais */}
++              {editando && (
++                <div className="bg-[#FACC15]/10 border border-[#FACC15]/30 rounded-xl p-4 md:p-5 flex flex-col gap-2">
++                  <h4 className="font-bold text-[#92600e] flex items-center gap-2 text-sm md:text-base">
++                    <Star size={16} /> Dicas para atrair mais alunos
++                  </h4>
++                  <ul className="text-xs md:text-sm text-[#92600e] space-y-1.5 ml-5 list-disc">
++                    <li><strong className="font-semibold">Sua Foto Vende:</strong> Ao subir sua foto ali em cima, escolha uma imagem clara, sorridente e profissional.</li>
++                    <li><strong className="font-semibold">Seja Específico na Descrição:</strong> Fale sobre sua taxa de aprovação, se atende pessoas com traumas ou seu método didático.</li>
++                    <li><strong className="font-semibold">Veículos Claros:</strong> Preencha o status do veículo (Manual/Automático). Alunos buscam muito por essa diferença.</li>
++                  </ul>
++                </div>
++              )}
++
+               {/* Profile Details */}
+               <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                 <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
+@@ -549,12 +581,16 @@ export default function PainelInstrutorPageClient() {
+                         ))}
+                       </div>
+                     </div>
+-                    <div>
+-                      <label className="text-xs font-semibold text-neutral-500 mb-1 block">Descrição ({editDescricao.length}/500)</label>
++                    <div className="pt-2">
++                      <div className="flex justify-between items-end mb-1">
++                        <label className="text-xs font-semibold text-neutral-500 block">Descrição ({editDescricao.length}/500)</label>
++                        <span className="text-[10px] text-[#EAB308] font-medium hidden sm:block">Seja persuasivo e humano!</span>
++                      </div>
+                       <textarea
+                         value={editDescricao}
+                         onChange={(e) => setEditDescricao(e.target.value.slice(0, 500))}
+                         rows={4}
++                        placeholder="Ex: Instrutor credenciado pelo Senatran com mais de 8 anos de experiência. Especialista em primeira habilitação e em alunos com trauma de direção. Meu método é focado na paciência e em te dar autonomia real no trânsito."
+                         className={inputClass}
+                       />
+                     </div>
+@@ -626,10 +662,13 @@ export default function PainelInstrutorPageClient() {
+ 
+               {/* Vehicles */}
+               <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+-                <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
+-                  <Car size={16} className="text-[#EAB308]" />
+-                  Veículos
+-                </h3>
++                <div className="flex items-center justify-between mb-3 md:mb-4">
++                  <h3 className="font-bold text-base md:text-lg flex items-center gap-2">
++                    <Car size={16} className="text-[#EAB308]" />
++                    Veículos
++                  </h3>
++                  {editando && <span className="text-[10px] md:text-xs text-neutral-400 bg-neutral-100 px-2 py-1 rounded-md">Alunos filtram pelo câmbio!</span>}
++                </div>
+                 {!editando ? (
+                   <div className="grid sm:grid-cols-2 gap-3">
+                     {instrutor.veiculos.map((v) => (
+@@ -678,54 +717,221 @@ export default function PainelInstrutorPageClient() {
+                 )}
+               </div>
+ 
++              
++              {/* Disponibilidade */}
++              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
++                <div className="flex items-center justify-between mb-3 md:mb-4">
++                  <h3 className="font-bold text-base md:text-lg flex items-center gap-2">
++                    <Calendar size={16} className="text-[#EAB308]" />
++                    Horários de Disponibilidade
++                  </h3>
++                  {editando && <span className="text-[10px] md:text-xs text-neutral-400 bg-neutral-100 px-2 py-1 rounded-md">Alunos valorizam instrutores flexíveis!</span>}
++                </div>
++                {!editando ? (
++                  <div className="flex flex-wrap gap-2">
++                    {instrutor.disponibilidades.length === 0 ? (
++                      <p className="text-sm text-neutral-400">Nenhum horário cadastrado</p>
++                    ) : (
++                      instrutor.disponibilidades.map((d) => (
++                        <div key={d.id} className="bg-[#FACC15]/10 text-[#92600e] border border-[#FACC15]/20 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1">
++                          <Clock size={14} />
++                          {DIAS_SEMANA[d.dia_semana]} - {TURNOS.find(t => t.id === d.turno)?.label}
++                        </div>
++                      ))
++                    )}
++                  </div>
++                ) : (
++                  <div className="space-y-4">
++                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
++                        {DIAS_SEMANA.map((dia, dIdx) => (
++                          <div key={dia} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50">
++                            <p className="text-sm font-bold text-neutral-700 mb-2">{dia}</p>
++                            <div className="space-y-2">
++                              {TURNOS.map(turno => {
++                                const checked = editDisponibilidades.some(d => d.dia_semana === dIdx && d.turno === turno.id)
++                                return (
++                                  <label key={turno.id} className="flex items-center gap-2 cursor-pointer">
++                                    <input 
++                                      type="checkbox"
++                                      className="w-4 h-4 rounded border-neutral-300 text-[#FACC15] focus:ring-[#FACC15]/20"
++                                      checked={checked}
++                                      onChange={(e) => {
++                                        if (e.target.checked) {
++                                          setEditDisponibilidades([...editDisponibilidades, { dia_semana: dIdx, turno: turno.id }])
++                                        } else {
++                                          setEditDisponibilidades(editDisponibilidades.filter(d => !(d.dia_semana === dIdx && d.turno === turno.id)))
++                                        }
++                                      }}
++                                    />
++                                    <span className="text-sm text-neutral-600">{turno.label}</span>
++                                  </label>
++                                )
++                              })}
++                            </div>
++                          </div>
++                        ))}
++                     </div>
++                  </div>
++                )}
++              </div>
++
+               {/* Documents */}
+               <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                 <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
+                   <Shield size={16} className="text-[#EAB308]" />
+-                  Documentos Enviados
++                  Documentos
+                 </h3>
++
++                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
++                  <div className="flex items-start gap-2">
++                    <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={16} />
++                    <p className="text-amber-800 text-xs leading-relaxed">
++                      Ao enviar ou trocar um documento, seu perfil entrará em análise.
++                      O suporte precisará validar e aceitar ou rejeitar o documento.
++                    </p>
++                  </div>
++                </div>
++
+                 <div className="space-y-3">
+-                  {instrutor.documentos.map((doc) => (
+-                    <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-4 py-3 border border-transparent hover:border-neutral-200 transition-colors">
+-                      <div className="flex items-center gap-3">
+-                        <FileText className="text-neutral-400" size={18} />
+-                        <div>
+-                          <p className="text-sm font-medium">{doc.nome_arquivo}</p>
+-                          <p className="text-xs text-neutral-400">
+-                            {doc.tipo === 'certificado_senatran' && 'Certificado SENATRAN'}
+-                            {doc.tipo === 'comprovante_residencia' && 'Comprovante de Residência'}
+-                            {doc.tipo === 'cnh' && 'CNH'}
+-                            {doc.tipo === 'foto_veiculo' && 'Foto do Veículo'}
+-                          </p>
+-                        </div>
+-                      </div>
+-                      <div className="flex items-center gap-2">
+-                        <CheckCircle className="text-green-500 hidden md:block" size={18} />
+-                        {(instrutor.status === 'recusado' || editando) && (
+-                          <label className="cursor-pointer bg-white border border-neutral-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition-colors">
+-                            Substituir
+-                            <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg" onChange={async (e) => {
+-                              const file = e.target.files?.[0]
+-                              if (!file) return
+-                              const tId = toast.loading('Enviando novo documento...')
+-                              const upload = await uploadDocumento(instrutor.user_id || instrutor.id, file, doc.tipo)
+-                              if (upload) {
+-                                const ok = await atualizarDocumento(doc.id, { nome_arquivo: upload.nome_arquivo, url: upload.url })
+-                                if (ok) {
+-                                  toast.success('Documento atualizado!', { id: tId })
+-                                  recarregarInstrutor()
++                  {/* Documentos obrigatórios */}
++                  {(() => {
++                    const tiposObrigatorios = [
++                      { tipo: 'certificado_senatran', nome: 'Certificado SENATRAN' },
++                      { tipo: 'comprovante_residencia', nome: 'Comprovante de Residência' },
++                      { tipo: 'cnh', nome: 'CNH (frente e verso)' },
++                    ] as const
++
++                    return tiposObrigatorios.map((tipoDoc) => {
++                      const docExistente = instrutor.documentos.find(d => d.tipo === tipoDoc.tipo)
++
++                      if (docExistente) {
++                        // Documento já enviado — mostrar com status e opção de trocar
++                        return (
++                          <div key={tipoDoc.tipo} className={`rounded-xl px-4 py-3 border transition-colors ${
++                            docExistente.status === 'recusado' ? 'bg-red-50 border-red-200' :
++                            docExistente.status === 'pendente' ? 'bg-amber-50 border-amber-200' :
++                            'bg-neutral-50 border-neutral-200'
++                          }`}>
++                            <div className="flex items-center justify-between">
++                              <div className="flex items-center gap-3 min-w-0 flex-1">
++                                <FileText className={`flex-shrink-0 ${
++                                  docExistente.status === 'recusado' ? 'text-red-400' :
++                                  docExistente.status === 'pendente' ? 'text-amber-400' :
++                                  'text-green-500'
++                                }`} size={18} />
++                                <div className="min-w-0">
++                                  <p className="text-sm font-medium truncate">{docExistente.nome_arquivo}</p>
++                                  <div className="flex items-center gap-2 mt-0.5">
++                                    <span className="text-xs text-neutral-400">{tipoDoc.nome}</span>
++                                    {docExistente.status === 'aprovado' && (
++                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
++                                        <CheckCircle size={10} /> Aprovado
++                                      </span>
++                                    )}
++                                    {docExistente.status === 'pendente' && (
++                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">
++                                        <Clock size={10} /> Em análise
++                                      </span>
++                                    )}
++                                    {docExistente.status === 'recusado' && (
++                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">
++                                        <XCircle size={10} /> Recusado
++                                      </span>
++                                    )}
++                                  </div>
++                                  {docExistente.status === 'recusado' && docExistente.motivo_recusa && (
++                                    <p className="text-xs text-red-600 mt-1">Motivo: {docExistente.motivo_recusa}</p>
++                                  )}
++                                </div>
++                              </div>
++                              <label className="cursor-pointer bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm flex-shrink-0">
++                                🔄 Trocar
++                                <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg" onChange={async (e) => {
++                                  const file = e.target.files?.[0]
++                                  if (!file) return
++                                  const tId = toast.loading('Enviando novo documento...')
++                                  const upload = await uploadDocumento(instrutor.user_id || instrutor.id, file, docExistente.tipo)
++                                  if (upload) {
++                                    const ok = await atualizarDocumento(docExistente.id, { nome_arquivo: upload.nome_arquivo, url: upload.url })
++                                    if (ok) {
++                                      await solicitarNovaAnalise(instrutor.id)
++                                      toast.success('Documento enviado! Seu perfil entrou em análise para validação.', { id: tId, duration: 5000 })
++                                      recarregarInstrutor()
++                                    } else {
++                                      toast.error('Erro ao atualizar!', { id: tId })
++                                    }
++                                  } else {
++                                    toast.error('Erro no upload!', { id: tId })
++                                  }
++                                }} />
++                              </label>
++                            </div>
++                          </div>
++                        )
++                      }
++
++                      // Documento NÃO enviado — mostrar upload
++                      return (
++                        <div key={tipoDoc.tipo} className="rounded-xl px-4 py-3 border-2 border-dashed border-neutral-200 hover:border-[#FACC15] transition-colors">
++                          <div className="flex items-center justify-between">
++                            <div className="flex items-center gap-3">
++                              <Upload className="text-neutral-300" size={18} />
++                              <div>
++                                <p className="text-sm font-medium text-neutral-500">{tipoDoc.nome}</p>
++                                <p className="text-xs text-red-400 font-semibold">Obrigatório — não enviado</p>
++                              </div>
++                            </div>
++                            <label className="cursor-pointer bg-[#FACC15] text-neutral-900 px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-bold hover:bg-[#EAB308] transition-colors shadow-sm flex-shrink-0">
++                              Enviar
++                              <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg" onChange={async (e) => {
++                                const file = e.target.files?.[0]
++                                if (!file) return
++                                const tId = toast.loading('Enviando documento...')
++                                const upload = await uploadDocumento(instrutor.user_id || instrutor.id, file, tipoDoc.tipo)
++                                if (upload) {
++                                  const ok = await criarDocumento(instrutor.id, {
++                                    tipo: tipoDoc.tipo,
++                                    nome_arquivo: upload.nome_arquivo,
++                                    url: upload.url,
++                                  })
++                                  if (ok) {
++                                    await solicitarNovaAnalise(instrutor.id)
++                                    toast.success('Documento enviado! Aguardando validação do suporte.', { id: tId, duration: 5000 })
++                                    recarregarInstrutor()
++                                  } else {
++                                    toast.error('Erro ao salvar documento!', { id: tId })
++                                  }
+                                 } else {
+-                                  toast.error('Erro ao atualizar!', { id: tId })
++                                  toast.error('Erro no upload!', { id: tId })
+                                 }
+-                              } else {
+-                                toast.error('Erro no upload!', { id: tId })
+-                              }
+-                            }} />
+-                          </label>
+-                        )}
++                              }} />
++                            </label>
++                          </div>
++                        </div>
++                      )
++                    })
++                  })()}
++
++                  {/* Documentos extras (foto_veiculo, etc) que não são obrigatórios */}
++                  {instrutor.documentos
++                    .filter(d => !['certificado_senatran', 'comprovante_residencia', 'cnh'].includes(d.tipo))
++                    .map((doc) => (
++                      <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-4 py-3 border border-neutral-200">
++                        <div className="flex items-center gap-3 min-w-0 flex-1">
++                          <FileText className="text-neutral-400 flex-shrink-0" size={18} />
++                          <div className="min-w-0">
++                            <p className="text-sm font-medium truncate">{doc.nome_arquivo}</p>
++                            <p className="text-xs text-neutral-400">
++                              {doc.tipo === 'foto_veiculo' ? 'Foto do Veículo' : doc.tipo}
++                            </p>
++                          </div>
++                        </div>
++                        {doc.status === 'aprovado' && <CheckCircle className="text-green-500 flex-shrink-0" size={16} />}
++                        {doc.status === 'pendente' && <Clock className="text-amber-500 flex-shrink-0" size={16} />}
++                        {doc.status === 'recusado' && <XCircle className="text-red-500 flex-shrink-0" size={16} />}
+                       </div>
+-                    </div>
+-                  ))}
++                    ))
++                  }
+                 </div>
+               </div>
+ 
+diff --git a/src/contexts/AuthContext.tsx b/src/contexts/AuthContext.tsx
+index 5fe1665..3f656af 100644
+--- a/src/contexts/AuthContext.tsx
++++ b/src/contexts/AuthContext.tsx
+@@ -21,7 +21,7 @@ interface AuthContextType {
+   isReady: boolean
+   login: (email: string, senha: string) => Promise<{ success: boolean; error?: string }>
+   registrar: (email: string, senha: string, nome: string) => Promise<{ success: boolean; error?: string; userId?: string }>
+-  logout: () => void
++  logout: () => Promise<void>
+   recarregarInstrutor: () => Promise<void>
+   isAdmin: boolean
+   isInstrutor: boolean
+diff --git a/src/lib/db.ts b/src/lib/db.ts
+index dd4ef7a..b698957 100644
+--- a/src/lib/db.ts
++++ b/src/lib/db.ts
+@@ -84,6 +84,8 @@ function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
+       nome_arquivo: d.nome_arquivo as string,
+       url: d.url as string,
+       uploaded_at: (d.enviado_em as string) || (d.uploaded_at as string),
++      status: (d.status as 'pendente' | 'aprovado' | 'recusado') || 'aprovado',
++      motivo_recusa: (d.motivo_recusa as string) || undefined,
+     })),
+     visualizacoes: (row.visualizacoes as number) || 0,
+     contatos: ((row.contatos as Record<string, unknown>[]) || []).map(c => ({
+@@ -405,7 +407,7 @@ export async function criarDocumento(
+ ): Promise<boolean> {
+   const { error } = await supabase!
+     .from('documentos')
+-    .insert({ instrutor_id: instrutorId, ...dados })
++    .insert({ instrutor_id: instrutorId, ...dados, status: 'pendente' })
+ 
+   if (error) {
+     console.error('Erro ao criar documento:', error)
+@@ -420,7 +422,7 @@ export async function atualizarDocumento(
+ ): Promise<boolean> {
+   const { error } = await supabase!
+     .from('documentos')
+-    .update({ ...dados, enviado_em: new Date().toISOString() })
++    .update({ ...dados, status: 'pendente', enviado_em: new Date().toISOString() })
+     .eq('id', docId)
+ 
+   if (error) {
+@@ -430,6 +432,23 @@ export async function atualizarDocumento(
+   return true
+ }
+ 
++export async function atualizarStatusDocumento(
++  docId: string,
++  status: 'pendente' | 'aprovado' | 'recusado',
++  motivo_recusa?: string
++): Promise<boolean> {
++  const { error } = await supabase!
++    .from('documentos')
++    .update({ status, motivo_recusa: motivo_recusa || null })
++    .eq('id', docId)
++
++  if (error) {
++    console.error('Erro ao atualizar status do documento:', error)
++    return false
++  }
++  return true
++}
++
+ export async function solicitarNovaAnalise(id: string): Promise<boolean> {
+   const { error } = await supabase!
+     .from('instrutores')
+@@ -440,6 +459,25 @@ export async function solicitarNovaAnalise(id: string): Promise<boolean> {
+   return true
+ }
+ 
++export async function atualizarDisponibilidades(
++  instrutorId: string,
++  disps: { dia_semana: number; turno: 'manha' | 'tarde' | 'noite' }[]
++): Promise<boolean> {
++  const { error: err1 } = await supabase!
++    .from('disponibilidades')
++    .delete()
++    .eq('instrutor_id', instrutorId)
++
++  if (err1) return false
++  if (disps.length === 0) return true
++
++  const { error: err2 } = await supabase!
++    .from('disponibilidades')
++    .insert(disps.map(d => ({ instrutor_id: instrutorId, ...d })))
++
++  return !err2
++}
++
+ // ============================================
+ // Sitemap
+ // ============================================
+@@ -453,3 +491,75 @@ export async function getSlugsAprovados(): Promise<string[]> {
+   if (error) return []
+   return (data || []).map((d: { slug: string }) => d.slug)
+ }
++
++
++export interface CidadeComContagem {
++  cidade: string
++  estado: string
++  label: string // "Cidade - UF"
++  instrutores: number
++}
++
++export async function getEstatisticasGlobais() {
++  const { data, error } = await supabase!
++    .from('instrutores')
++    .select('alunos_formados, localizacoes(cidade, estado), avaliacoes(nota)')
++    .eq('status', 'aprovado')
++
++  if (error || !data) {
++    return { instrutores: 0, alunos: 0, media: '0', cidades: 0, listaCidades: [] as CidadeComContagem[] }
++  }
++
++  const instrutores = data.length
++  let alunos = 0
++  let totalNotas = 0
++  let qtdNotas = 0
++  const cityMap = new Map<string, { cidade: string; estado: string; count: number }>()
++
++  data.forEach((inst: Record<string, unknown>) => {
++    alunos += ((inst.alunos_formados as number) || 0)
++
++    if (inst.avaliacoes) {
++      const avaliacoes = Array.isArray(inst.avaliacoes) ? inst.avaliacoes : [inst.avaliacoes]
++      avaliacoes.forEach((av: Record<string, unknown>) => {
++        totalNotas += (av.nota as number)
++        qtdNotas++
++      })
++    }
++
++    if (inst.localizacoes) {
++      const locs = inst.localizacoes as Record<string, unknown>[] | Record<string, unknown>
++      const loc = Array.isArray(locs) ? locs[0] : locs
++      if (loc && loc.cidade) {
++        const cidade = loc.cidade as string
++        const estado = (loc.estado as string) || ''
++        const key = `${cidade}-${estado}`.toLowerCase()
++        const existing = cityMap.get(key)
++        if (existing) {
++          existing.count++
++        } else {
++          cityMap.set(key, { cidade, estado, count: 1 })
++        }
++      }
++    }
++  })
++
++  const media = qtdNotas > 0 ? (totalNotas / qtdNotas).toFixed(1) : '5.0'
++
++  const listaCidades: CidadeComContagem[] = Array.from(cityMap.values())
++    .map(c => ({
++      cidade: c.cidade,
++      estado: c.estado,
++      label: c.estado ? `${c.cidade} - ${c.estado}` : c.cidade,
++      instrutores: c.count,
++    }))
++    .sort((a, b) => a.label.localeCompare(b.label))
++
++  return {
++    instrutores,
++    alunos,
++    media,
++    cidades: cityMap.size,
++    listaCidades,
++  }
++}
+diff --git a/src/types/index.ts b/src/types/index.ts
+index 825ed9e..306104d 100644
+--- a/src/types/index.ts
++++ b/src/types/index.ts
+@@ -1,3 +1,5 @@
++export type StatusDocumento = 'pendente' | 'aprovado' | 'recusado'
++
+ export interface Documento {
+   id: string
+   instrutor_id: string
+@@ -5,6 +7,8 @@ export interface Documento {
+   nome_arquivo: string
+   url: string
+   uploaded_at: string
++  status: StatusDocumento
++  motivo_recusa?: string
+ }
+ 
+ export type StatusInstrutor = 'em_analise' | 'aprovado' | 'recusado' | 'suspenso'

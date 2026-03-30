@@ -7,9 +7,10 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { StarRating } from '@/components/shared/StarRating'
 import { CategoryBadge } from '@/components/shared/CategoryBadge'
-import { getInstrutoresAprovados, getMediaAvaliacao } from '@/lib/db'
+import { getInstrutoresAprovados, getMediaAvaliacao, getEstatisticasGlobais } from '@/lib/db'
+import type { CidadeComContagem } from '@/lib/db'
 import type { Instrutor } from '@/types'
-import { Search, MapPin, Shield, Zap, ChevronDown, ChevronUp, Award } from 'lucide-react'
+import { Search, MapPin, Shield, Zap, ChevronDown, ChevronUp, Award, Users } from 'lucide-react'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -25,9 +26,57 @@ export default function HomePage() {
   const [faqAberto, setFaqAberto] = useState<number | null>(null)
   const [instrutoresDestaque, setInstrutoresDestaque] = useState<Instrutor[]>([])
 
+  const [estatisticas, setEstatisticas] = useState({ instrutores: 0, alunos: 0, media: '0', cidades: 0, listaCidades: [] as CidadeComContagem[] })
+  const [regiaoUsuario, setRegiaoUsuario] = useState('')
+  const [, setBuscandoLocal] = useState(true)
+  const [showSugestoes, setShowSugestoes] = useState(false)
+
+  const sugestoesFiltradas = cidadeBusca.length >= 2
+    ? estatisticas.listaCidades.filter(c =>
+        c.label.toLowerCase().includes(cidadeBusca.toLowerCase()) ||
+        c.cidade.toLowerCase().includes(cidadeBusca.toLowerCase())
+      ).slice(0, 8)
+    : []
+
+  const cidadeSemResultado = cidadeBusca.length >= 3 && sugestoesFiltradas.length === 0
+
   useEffect(() => {
-    getInstrutoresAprovados().then(lista => setInstrutoresDestaque(lista.slice(0, 4)))
+    getEstatisticasGlobais().then(setEstatisticas)
+
+    // Pegar localização
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`)
+          const data = await res.json()
+          const city = data.address.city || data.address.town || data.address.village
+          if (city) {
+            setRegiaoUsuario(city)
+            setCidadeBusca(city)
+          }
+        } catch {}
+        setBuscandoLocal(false)
+      }, () => {
+        setBuscandoLocal(false)
+      })
+    } else {
+      setBuscandoLocal(false)
+    }
   }, [])
+
+  useEffect(() => {
+    getInstrutoresAprovados().then(lista => {
+      if (regiaoUsuario) {
+        const perto = lista.filter(i => i.localizacao.cidade.toLowerCase() === regiaoUsuario.toLowerCase())
+        if (perto.length > 0) {
+          setInstrutoresDestaque(perto.slice(0, 4))
+          return
+        }
+      }
+      setInstrutoresDestaque(lista.slice(0, 4))
+    })
+  }, [regiaoUsuario])
+
 
   const etapas = [
     { icon: Search, titulo: 'Busque', descricao: 'Pesquise instrutores autônomos credenciados na sua cidade.' },
@@ -35,12 +84,14 @@ export default function HomePage() {
     { icon: Zap, titulo: 'Conecte-se', descricao: 'Entre em contato direto via WhatsApp e agende sua aula.' },
   ]
 
+  
   const stats = [
-    { valor: '8+', label: 'Instrutores Credenciados' },
-    { valor: '4.000+', label: 'Alunos Formados' },
-    { valor: '4.7', label: 'Avaliação Média' },
-    { valor: '7', label: 'Cidades Atendidas' },
+    { valor: `${estatisticas.instrutores}`, label: 'Instrutores Credenciados' },
+    { valor: `${estatisticas.alunos.toLocaleString('pt-BR')}`, label: 'Alunos Formados' },
+    { valor: `${estatisticas.media}`, label: 'Avaliação Média' },
+    { valor: `${estatisticas.cidades}`, label: 'Cidades Atendidas' },
   ]
+
 
   const faqs = [
     {
@@ -93,14 +144,54 @@ export default function HomePage() {
             {/* Search Bar */}
             <div className="flex flex-col sm:flex-row gap-2 md:gap-3 max-w-xl mx-auto">
               <div className="relative flex-1">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 z-10" size={18} />
                 <input
                   type="text"
                   placeholder="Digite sua cidade..."
                   value={cidadeBusca}
-                  onChange={(e) => setCidadeBusca(e.target.value)}
+                  onChange={(e) => { setCidadeBusca(e.target.value); setShowSugestoes(true) }}
+                  onFocus={() => setShowSugestoes(true)}
+                  onBlur={() => setTimeout(() => setShowSugestoes(false), 200)}
                   className="w-full bg-white border border-neutral-200 rounded-xl pl-11 pr-4 py-3 md:py-4 text-sm md:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all shadow-sm"
                 />
+
+                {/* Dropdown de sugestões */}
+                {showSugestoes && cidadeBusca.length >= 2 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-72 overflow-y-auto">
+                    {sugestoesFiltradas.length > 0 ? (
+                      sugestoesFiltradas.map((c) => (
+                        <button
+                          key={c.label}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setCidadeBusca(c.cidade)
+                            setShowSugestoes(false)
+                          }}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-yellow-50 transition-colors text-left border-b border-neutral-100 last:border-0"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <MapPin size={14} className="text-neutral-300 flex-shrink-0" />
+                            <div>
+                              <span className="text-sm font-medium text-neutral-900">{c.cidade}</span>
+                              {c.estado && <span className="text-sm text-neutral-400"> - {c.estado}</span>}
+                            </div>
+                          </div>
+                          <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0">
+                            <Users size={10} />
+                            {c.instrutores} {c.instrutores === 1 ? 'instrutor' : 'instrutores'}
+                          </span>
+                        </button>
+                      ))
+                    ) : cidadeSemResultado ? (
+                      <div className="px-4 py-4 text-center">
+                        <p className="text-sm text-neutral-500">Nenhum instrutor encontrado em</p>
+                        <p className="text-sm font-semibold text-neutral-700">&quot;{cidadeBusca}&quot;</p>
+                        <p className="text-xs text-neutral-400 mt-1">Tente outra cidade ou verifique a ortografia</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
               <Link
                 href={`/buscar${cidadeBusca ? `?cidade=${encodeURIComponent(cidadeBusca)}` : ''}`}
@@ -111,6 +202,79 @@ export default function HomePage() {
               </Link>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Instrutores em Destaque */}
+      <section className="py-12 md:py-20 bg-neutral-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            custom={0}
+            className="text-center mb-6 md:mb-16"
+          >
+            <h2 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Instrutores em Destaque {regiaoUsuario ? `na região de ${regiaoUsuario}` : ""}</h2>
+            <p className="text-neutral-500 text-sm md:text-lg max-w-2xl mx-auto">
+              Profissionais bem avaliados e prontos para te ajudar.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+            {instrutoresDestaque.map((inst, i) => {
+              const media = getMediaAvaliacao(inst.avaliacoes)
+              return (
+                <motion.div
+                  key={inst.id}
+                  custom={i + 1}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={fadeUp}
+                >
+                  <Link
+                    href={`/instrutor/${inst.slug}`}
+                    className="block bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-[#FACC15] hover:-translate-y-1 hover:shadow-lg hover:shadow-yellow-400/10 transition-all duration-200 group text-center"
+                  >
+                    <img
+                      src={inst.foto_url}
+                      alt={inst.nome}
+                      className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover mx-auto mb-2.5 md:mb-3 ring-2 ring-neutral-100 group-hover:ring-[#FACC15]/40 transition-all"
+                    />
+                    <h3 className="font-bold text-sm md:text-base truncate group-hover:text-[#EAB308] transition-colors mb-0.5">
+                      {inst.nome.split(' ').slice(0, 2).join(' ')}
+                    </h3>
+                    <p className="text-neutral-400 text-[11px] md:text-xs flex items-center justify-center gap-0.5 mb-2.5 md:mb-3">
+                      <MapPin size={11} />
+                      {inst.localizacao.cidade}
+                    </p>
+                    <div className="flex gap-1 md:gap-1.5 justify-center mb-2.5 md:mb-3">
+                      {inst.categorias.map((cat) => (
+                        <CategoryBadge key={cat} category={cat} />
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-center mb-2">
+                      <StarRating rating={media} size="sm" showValue count={inst.avaliacoes.length} />
+                    </div>
+                    <div className="text-[#EAB308] font-bold text-sm md:text-base">
+                      R$ {inst.preco_hora}<span className="text-neutral-400 font-normal text-[11px] md:text-xs">/h</span>
+                    </div>
+                  </Link>
+                </motion.div>
+              )
+            })}
+          </div>
+
+          <div className="text-center mt-8 md:mt-12">
+            <Link
+              href="/buscar"
+              className="inline-flex items-center gap-2 border-2 border-neutral-900 text-neutral-900 px-6 py-2.5 md:px-8 md:py-3 rounded-xl font-bold text-sm md:text-base hover:bg-neutral-900 hover:text-white transition-all duration-200"
+            >
+              Ver todos os instrutores
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -176,78 +340,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Instrutores em Destaque */}
-      <section className="py-12 md:py-20 bg-neutral-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeUp}
-            custom={0}
-            className="text-center mb-6 md:mb-16"
-          >
-            <h2 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Instrutores em Destaque</h2>
-            <p className="text-neutral-500 text-sm md:text-lg max-w-2xl mx-auto">
-              Profissionais bem avaliados e prontos para te ajudar.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-            {instrutoresDestaque.map((inst, i) => {
-              const media = getMediaAvaliacao(inst.avaliacoes)
-              return (
-                <motion.div
-                  key={inst.id}
-                  custom={i + 1}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true }}
-                  variants={fadeUp}
-                >
-                  <Link
-                    href={`/instrutor/${inst.slug}`}
-                    className="block bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-[#FACC15] hover:-translate-y-1 hover:shadow-lg hover:shadow-yellow-400/10 transition-all duration-200 group text-center"
-                  >
-                    <img
-                      src={inst.foto_url}
-                      alt={inst.nome}
-                      className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover mx-auto mb-2.5 md:mb-3 ring-2 ring-neutral-100 group-hover:ring-[#FACC15]/40 transition-all"
-                    />
-                    <h3 className="font-bold text-sm md:text-base truncate group-hover:text-[#EAB308] transition-colors mb-0.5">
-                      {inst.nome.split(' ').slice(0, 2).join(' ')}
-                    </h3>
-                    <p className="text-neutral-400 text-[11px] md:text-xs flex items-center justify-center gap-0.5 mb-2.5 md:mb-3">
-                      <MapPin size={11} />
-                      {inst.localizacao.cidade}
-                    </p>
-                    <div className="flex gap-1 md:gap-1.5 justify-center mb-2.5 md:mb-3">
-                      {inst.categorias.map((cat) => (
-                        <CategoryBadge key={cat} category={cat} />
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-center mb-2">
-                      <StarRating rating={media} size="sm" showValue count={inst.avaliacoes.length} />
-                    </div>
-                    <div className="text-[#EAB308] font-bold text-sm md:text-base">
-                      R$ {inst.preco_hora}<span className="text-neutral-400 font-normal text-[11px] md:text-xs">/h</span>
-                    </div>
-                  </Link>
-                </motion.div>
-              )
-            })}
-          </div>
-
-          <div className="text-center mt-8 md:mt-12">
-            <Link
-              href="/buscar"
-              className="inline-flex items-center gap-2 border-2 border-neutral-900 text-neutral-900 px-6 py-2.5 md:px-8 md:py-3 rounded-xl font-bold text-sm md:text-base hover:bg-neutral-900 hover:text-white transition-all duration-200"
-            >
-              Ver todos os instrutores
-            </Link>
-          </div>
-        </div>
-      </section>
+      
 
       {/* CTA Nova Lei */}
       <section className="py-12 md:py-20">

@@ -1,3 +1,5 @@
+export type StatusDocumento = 'pendente' | 'aprovado' | 'recusado'
+
 export interface Documento {
   id: string
   instrutor_id: string
@@ -5,6 +7,8 @@ export interface Documento {
   nome_arquivo: string
   url: string
   uploaded_at: string
+  status: StatusDocumento
+  motivo_recusa?: string
 }
 
 export type StatusInstrutor = 'em_analise' | 'aprovado' | 'recusado' | 'suspenso'

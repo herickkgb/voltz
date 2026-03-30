@@ -21,7 +21,7 @@ interface AuthContextType {
   isReady: boolean
   login: (email: string, senha: string) => Promise<{ success: boolean; error?: string }>
   registrar: (email: string, senha: string, nome: string) => Promise<{ success: boolean; error?: string; userId?: string }>
-  logout: () => void
+  logout: () => Promise<void>
   recarregarInstrutor: () => Promise<void>
   isAdmin: boolean
   isInstrutor: boolean
@@ -165,11 +165,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Logout
   const logout = useCallback(async () => {
-    if (supabase) {
-      await supabase.auth.signOut()
-    }
     setUser(null)
     localStorage.removeItem('voltz_user')
+    if (supabase) {
+      await supabase.auth.signOut({ scope: 'local' })
+    }
   }, [])
 
   return (

@@ -84,6 +84,8 @@ function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
       nome_arquivo: d.nome_arquivo as string,
       url: d.url as string,
       uploaded_at: (d.enviado_em as string) || (d.uploaded_at as string),
+      status: (d.status as 'pendente' | 'aprovado' | 'recusado') || 'aprovado',
+      motivo_recusa: (d.motivo_recusa as string) || undefined,
     })),
     visualizacoes: (row.visualizacoes as number) || 0,
     contatos: ((row.contatos as Record<string, unknown>[]) || []).map(c => ({
@@ -405,7 +407,7 @@ export async function criarDocumento(
 ): Promise<boolean> {
   const { error } = await supabase!
     .from('documentos')
-    .insert({ instrutor_id: instrutorId, ...dados })
+    .insert({ instrutor_id: instrutorId, ...dados, status: 'pendente' })
 
   if (error) {
     console.error('Erro ao criar documento:', error)
@@ -420,11 +422,28 @@ export async function atualizarDocumento(
 ): Promise<boolean> {
   const { error } = await supabase!
     .from('documentos')
-    .update({ ...dados, enviado_em: new Date().toISOString() })
+    .update({ ...dados, status: 'pendente', enviado_em: new Date().toISOString() })
     .eq('id', docId)
 
   if (error) {
     console.error('Erro ao atualizar documento:', error)
+    return false
+  }
+  return true
+}
+
+export async function atualizarStatusDocumento(
+  docId: string,
+  status: 'pendente' | 'aprovado' | 'recusado',
+  motivo_recusa?: string
+): Promise<boolean> {
+  const { error } = await supabase!
+    .from('documentos')
+    .update({ status, motivo_recusa: motivo_recusa || null })
+    .eq('id', docId)
+
+  if (error) {
+    console.error('Erro ao atualizar status do documento:', error)
     return false
   }
   return true
@@ -440,6 +459,25 @@ export async function solicitarNovaAnalise(id: string): Promise<boolean> {
   return true
 }
 
+export async function atualizarDisponibilidades(
+  instrutorId: string,
+  disps: { dia_semana: number; turno: 'manha' | 'tarde' | 'noite' }[]
+): Promise<boolean> {
+  const { error: err1 } = await supabase!
+    .from('disponibilidades')
+    .delete()
+    .eq('instrutor_id', instrutorId)
+
+  if (err1) return false
+  if (disps.length === 0) return true
+
+  const { error: err2 } = await supabase!
+    .from('disponibilidades')
+    .insert(disps.map(d => ({ instrutor_id: instrutorId, ...d })))
+
+  return !err2
+}
+
 // ============================================
 // Sitemap
 // ============================================
@@ -452,4 +490,76 @@ export async function getSlugsAprovados(): Promise<string[]> {
 
   if (error) return []
   return (data || []).map((d: { slug: string }) => d.slug)
+}
+
+
+export interface CidadeComContagem {
+  cidade: string
+  estado: string
+  label: string // "Cidade - UF"
+  instrutores: number
+}
+
+export async function getEstatisticasGlobais() {
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .select('alunos_formados, localizacoes(cidade, estado), avaliacoes(nota)')
+    .eq('status', 'aprovado')
+
+  if (error || !data) {
+    return { instrutores: 0, alunos: 0, media: '0', cidades: 0, listaCidades: [] as CidadeComContagem[] }
+  }
+
+  const instrutores = data.length
+  let alunos = 0
+  let totalNotas = 0
+  let qtdNotas = 0
+  const cityMap = new Map<string, { cidade: string; estado: string; count: number }>()
+
+  data.forEach((inst: Record<string, unknown>) => {
+    alunos += ((inst.alunos_formados as number) || 0)
+
+    if (inst.avaliacoes) {
+      const avaliacoes = Array.isArray(inst.avaliacoes) ? inst.avaliacoes : [inst.avaliacoes]
+      avaliacoes.forEach((av: Record<string, unknown>) => {
+        totalNotas += (av.nota as number)
+        qtdNotas++
+      })
+    }
+
+    if (inst.localizacoes) {
+      const locs = inst.localizacoes as Record<string, unknown>[] | Record<string, unknown>
+      const loc = Array.isArray(locs) ? locs[0] : locs
+      if (loc && loc.cidade) {
+        const cidade = loc.cidade as string
+        const estado = (loc.estado as string) || ''
+        const key = `${cidade}-${estado}`.toLowerCase()
+        const existing = cityMap.get(key)
+        if (existing) {
+          existing.count++
+        } else {
+          cityMap.set(key, { cidade, estado, count: 1 })
+        }
+      }
+    }
+  })
+
+  const media = qtdNotas > 0 ? (totalNotas / qtdNotas).toFixed(1) : '5.0'
+
+  const listaCidades: CidadeComContagem[] = Array.from(cityMap.values())
+    .map(c => ({
+      cidade: c.cidade,
+      estado: c.estado,
+      label: c.estado ? `${c.cidade} - ${c.estado}` : c.cidade,
+      instrutores: c.count,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+
+  return {
+    instrutores,
+    alunos,
+    media,
+    cidades: cityMap.size,
+    listaCidades,
+  }
 }

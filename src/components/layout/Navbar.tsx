@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { LogOut, User, Shield } from 'lucide-react'
@@ -10,12 +9,11 @@ import { LogOut, User, Shield } from 'lucide-react'
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, isReady, isAdmin, isInstrutor, logout } = useAuth()
-  const router = useRouter()
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     setMobileOpen(false)
-    router.push('/')
+    window.location.href = '/'
   }
 
   return (

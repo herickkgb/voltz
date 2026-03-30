@@ -1,11 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { useAuth } from '@/contexts/AuthContext'
-import { atualizarPerfilInstrutor, atualizarLocalizacao, atualizarFotoPerfil, solicitarNovaAnalise, atualizarDocumento } from '@/lib/db'
+import { atualizarPerfilInstrutor, atualizarLocalizacao, atualizarFotoPerfil, solicitarNovaAnalise, atualizarDocumento, criarDocumento, atualizarDisponibilidades } from '@/lib/db'
 import { uploadFoto, uploadDocumento } from '@/lib/storage'
 import { telefoneMask, cepMask } from '@/lib/validations'
 import { toast } from 'sonner'
@@ -35,8 +34,17 @@ import {
   Headphones,
   Plus,
   Trash2,
+  Upload,
   Camera,
+  Calendar,
 } from 'lucide-react'
+
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const TURNOS = [
+  { id: 'manha', label: 'Manhã' },
+  { id: 'tarde', label: 'Tarde' },
+  { id: 'noite', label: 'Noite' }
+] as const;
 
 const planos: { tipo: PlanoTipo; nome: string; preco: number; recursos: string[]; destaque: boolean }[] = [
   {
@@ -67,7 +75,6 @@ const SUPORTE_WHATSAPP = '5511999990000'
 
 export default function PainelInstrutorPageClient() {
   const { user, logout, isReady, recarregarInstrutor } = useAuth()
-  const router = useRouter()
   const { buscarCep, loading: cepLoading } = useViaCep()
   const [tab, setTab] = useState<'perfil' | 'planos' | 'estatisticas'>('perfil')
   const [planoSelecionado, setPlanoSelecionado] = useState<PlanoTipo | null>(null)
@@ -85,6 +92,7 @@ export default function PainelInstrutorPageClient() {
   const [editRaioKm, setEditRaioKm] = useState('')
   const [editAceitaVeiculo, setEditAceitaVeiculo] = useState(false)
   const [editCategorias, setEditCategorias] = useState<string[]>([])
+  const [editDisponibilidades, setEditDisponibilidades] = useState<{dia_semana: number; turno: 'manha' | 'tarde' | 'noite'}[]>([])
   const [editVeiculos, setEditVeiculos] = useState<{ marca: string; modelo: string; ano: string; cambio: string }[]>([])
   const [respondendoId, setRespondendoId] = useState<string | null>(null)
   const [respostaTexto, setRespostaTexto] = useState('')
@@ -127,9 +135,9 @@ export default function PainelInstrutorPageClient() {
 
   const inputClass = 'w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all'
 
-  const handleLogout = () => {
-    logout()
-    router.push('/')
+  const handleLogout = async () => {
+    await logout()
+    window.location.href = '/'
   }
 
   const iniciarEdicao = () => {
@@ -143,6 +151,7 @@ export default function PainelInstrutorPageClient() {
     setEditRaioKm(String(instrutor.localizacao.raio_km))
     setEditAceitaVeiculo(instrutor.aceita_veiculo_candidato)
     setEditCategorias([...instrutor.categorias])
+    setEditDisponibilidades(instrutor.disponibilidades.map(d => ({ dia_semana: d.dia_semana, turno: d.turno as 'manha' | 'tarde' | 'noite' })))
     setEditVeiculos(instrutor.veiculos.map(v => ({ marca: v.marca, modelo: v.modelo, ano: String(v.ano), cambio: v.cambio })))
     setEditando(true)
   }
@@ -178,6 +187,13 @@ export default function PainelInstrutorPageClient() {
 
       if (!locOk) {
         toast.error('Erro ao salvar localização. Tente novamente.')
+        setSalvando(false)
+        return
+      }
+
+      const dispOk = await atualizarDisponibilidades(instrutor.id, editDisponibilidades)
+      if (!dispOk) {
+        toast.error('Erro ao salvar horários de disponibilidade.')
         setSalvando(false)
         return
       }
@@ -466,6 +482,20 @@ export default function PainelInstrutorPageClient() {
                 </div>
               )}
 
+              {/* Dicas Gerais */}
+              {editando && (
+                <div className="bg-[#FACC15]/10 border border-[#FACC15]/30 rounded-xl p-4 md:p-5 flex flex-col gap-2">
+                  <h4 className="font-bold text-[#92600e] flex items-center gap-2 text-sm md:text-base">
+                    <Star size={16} /> Dicas para atrair mais alunos
+                  </h4>
+                  <ul className="text-xs md:text-sm text-[#92600e] space-y-1.5 ml-5 list-disc">
+                    <li><strong className="font-semibold">Sua Foto Vende:</strong> Ao subir sua foto ali em cima, escolha uma imagem clara, sorridente e profissional.</li>
+                    <li><strong className="font-semibold">Seja Específico na Descrição:</strong> Fale sobre sua taxa de aprovação, se atende pessoas com traumas ou seu método didático.</li>
+                    <li><strong className="font-semibold">Veículos Claros:</strong> Preencha o status do veículo (Manual/Automático). Alunos buscam muito por essa diferença.</li>
+                  </ul>
+                </div>
+              )}
+
               {/* Profile Details */}
               <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
                 <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
@@ -549,12 +579,16 @@ export default function PainelInstrutorPageClient() {
                         ))}
                       </div>
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-neutral-500 mb-1 block">Descrição ({editDescricao.length}/500)</label>
+                    <div className="pt-2">
+                      <div className="flex justify-between items-end mb-1">
+                        <label className="text-xs font-semibold text-neutral-500 block">Descrição ({editDescricao.length}/500)</label>
+                        <span className="text-[10px] text-[#EAB308] font-medium hidden sm:block">Seja persuasivo e humano!</span>
+                      </div>
                       <textarea
                         value={editDescricao}
                         onChange={(e) => setEditDescricao(e.target.value.slice(0, 500))}
                         rows={4}
+                        placeholder="Ex: Instrutor credenciado pelo Senatran com mais de 8 anos de experiência. Especialista em primeira habilitação e em alunos com trauma de direção. Meu método é focado na paciência e em te dar autonomia real no trânsito."
                         className={inputClass}
                       />
                     </div>
@@ -626,10 +660,13 @@ export default function PainelInstrutorPageClient() {
 
               {/* Vehicles */}
               <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
-                <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
-                  <Car size={16} className="text-[#EAB308]" />
-                  Veículos
-                </h3>
+                <div className="flex items-center justify-between mb-3 md:mb-4">
+                  <h3 className="font-bold text-base md:text-lg flex items-center gap-2">
+                    <Car size={16} className="text-[#EAB308]" />
+                    Veículos
+                  </h3>
+                  {editando && <span className="text-[10px] md:text-xs text-neutral-400 bg-neutral-100 px-2 py-1 rounded-md">Alunos filtram pelo câmbio!</span>}
+                </div>
                 {!editando ? (
                   <div className="grid sm:grid-cols-2 gap-3">
                     {instrutor.veiculos.map((v) => (
@@ -678,54 +715,221 @@ export default function PainelInstrutorPageClient() {
                 )}
               </div>
 
+              
+              {/* Disponibilidade */}
+              <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <div className="flex items-center justify-between mb-3 md:mb-4">
+                  <h3 className="font-bold text-base md:text-lg flex items-center gap-2">
+                    <Calendar size={16} className="text-[#EAB308]" />
+                    Horários de Disponibilidade
+                  </h3>
+                  {editando && <span className="text-[10px] md:text-xs text-neutral-400 bg-neutral-100 px-2 py-1 rounded-md">Alunos valorizam instrutores flexíveis!</span>}
+                </div>
+                {!editando ? (
+                  <div className="flex flex-wrap gap-2">
+                    {instrutor.disponibilidades.length === 0 ? (
+                      <p className="text-sm text-neutral-400">Nenhum horário cadastrado</p>
+                    ) : (
+                      instrutor.disponibilidades.map((d) => (
+                        <div key={d.id} className="bg-[#FACC15]/10 text-[#92600e] border border-[#FACC15]/20 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1">
+                          <Clock size={14} />
+                          {DIAS_SEMANA[d.dia_semana]} - {TURNOS.find(t => t.id === d.turno)?.label}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {DIAS_SEMANA.map((dia, dIdx) => (
+                          <div key={dia} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50">
+                            <p className="text-sm font-bold text-neutral-700 mb-2">{dia}</p>
+                            <div className="space-y-2">
+                              {TURNOS.map(turno => {
+                                const checked = editDisponibilidades.some(d => d.dia_semana === dIdx && d.turno === turno.id)
+                                return (
+                                  <label key={turno.id} className="flex items-center gap-2 cursor-pointer">
+                                    <input 
+                                      type="checkbox"
+                                      className="w-4 h-4 rounded border-neutral-300 text-[#FACC15] focus:ring-[#FACC15]/20"
+                                      checked={checked}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setEditDisponibilidades([...editDisponibilidades, { dia_semana: dIdx, turno: turno.id }])
+                                        } else {
+                                          setEditDisponibilidades(editDisponibilidades.filter(d => !(d.dia_semana === dIdx && d.turno === turno.id)))
+                                        }
+                                      }}
+                                    />
+                                    <span className="text-sm text-neutral-600">{turno.label}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                     </div>
+                  </div>
+                )}
+              </div>
+
               {/* Documents */}
               <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6">
                 <h3 className="font-bold text-base md:text-lg mb-3 md:mb-4 flex items-center gap-2">
                   <Shield size={16} className="text-[#EAB308]" />
-                  Documentos Enviados
+                  Documentos
                 </h3>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={16} />
+                    <p className="text-amber-800 text-xs leading-relaxed">
+                      Ao enviar ou trocar um documento, seu perfil entrará em análise.
+                      O suporte precisará validar e aceitar ou rejeitar o documento.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="space-y-3">
-                  {instrutor.documentos.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-4 py-3 border border-transparent hover:border-neutral-200 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <FileText className="text-neutral-400" size={18} />
-                        <div>
-                          <p className="text-sm font-medium">{doc.nome_arquivo}</p>
-                          <p className="text-xs text-neutral-400">
-                            {doc.tipo === 'certificado_senatran' && 'Certificado SENATRAN'}
-                            {doc.tipo === 'comprovante_residencia' && 'Comprovante de Residência'}
-                            {doc.tipo === 'cnh' && 'CNH'}
-                            {doc.tipo === 'foto_veiculo' && 'Foto do Veículo'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="text-green-500 hidden md:block" size={18} />
-                        {(instrutor.status === 'recusado' || editando) && (
-                          <label className="cursor-pointer bg-white border border-neutral-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition-colors">
-                            Substituir
-                            <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg" onChange={async (e) => {
-                              const file = e.target.files?.[0]
-                              if (!file) return
-                              const tId = toast.loading('Enviando novo documento...')
-                              const upload = await uploadDocumento(instrutor.user_id || instrutor.id, file, doc.tipo)
-                              if (upload) {
-                                const ok = await atualizarDocumento(doc.id, { nome_arquivo: upload.nome_arquivo, url: upload.url })
-                                if (ok) {
-                                  toast.success('Documento atualizado!', { id: tId })
-                                  recarregarInstrutor()
+                  {/* Documentos obrigatórios */}
+                  {(() => {
+                    const tiposObrigatorios = [
+                      { tipo: 'certificado_senatran', nome: 'Certificado SENATRAN' },
+                      { tipo: 'comprovante_residencia', nome: 'Comprovante de Residência' },
+                      { tipo: 'cnh', nome: 'CNH (frente e verso)' },
+                    ] as const
+
+                    return tiposObrigatorios.map((tipoDoc) => {
+                      const docExistente = instrutor.documentos.find(d => d.tipo === tipoDoc.tipo)
+
+                      if (docExistente) {
+                        // Documento já enviado — mostrar com status e opção de trocar
+                        return (
+                          <div key={tipoDoc.tipo} className={`rounded-xl px-4 py-3 border transition-colors ${
+                            docExistente.status === 'recusado' ? 'bg-red-50 border-red-200' :
+                            docExistente.status === 'pendente' ? 'bg-amber-50 border-amber-200' :
+                            'bg-neutral-50 border-neutral-200'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <FileText className={`flex-shrink-0 ${
+                                  docExistente.status === 'recusado' ? 'text-red-400' :
+                                  docExistente.status === 'pendente' ? 'text-amber-400' :
+                                  'text-green-500'
+                                }`} size={18} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">{docExistente.nome_arquivo}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-xs text-neutral-400">{tipoDoc.nome}</span>
+                                    {docExistente.status === 'aprovado' && (
+                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
+                                        <CheckCircle size={10} /> Aprovado
+                                      </span>
+                                    )}
+                                    {docExistente.status === 'pendente' && (
+                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">
+                                        <Clock size={10} /> Em análise
+                                      </span>
+                                    )}
+                                    {docExistente.status === 'recusado' && (
+                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">
+                                        <XCircle size={10} /> Recusado
+                                      </span>
+                                    )}
+                                  </div>
+                                  {docExistente.status === 'recusado' && docExistente.motivo_recusa && (
+                                    <p className="text-xs text-red-600 mt-1">Motivo: {docExistente.motivo_recusa}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <label className="cursor-pointer bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm flex-shrink-0">
+                                🔄 Trocar
+                                <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg" onChange={async (e) => {
+                                  const file = e.target.files?.[0]
+                                  if (!file) return
+                                  const tId = toast.loading('Enviando novo documento...')
+                                  const upload = await uploadDocumento(instrutor.user_id || instrutor.id, file, docExistente.tipo)
+                                  if (upload) {
+                                    const ok = await atualizarDocumento(docExistente.id, { nome_arquivo: upload.nome_arquivo, url: upload.url })
+                                    if (ok) {
+                                      await solicitarNovaAnalise(instrutor.id)
+                                      toast.success('Documento enviado! Seu perfil entrou em análise para validação.', { id: tId, duration: 5000 })
+                                      recarregarInstrutor()
+                                    } else {
+                                      toast.error('Erro ao atualizar!', { id: tId })
+                                    }
+                                  } else {
+                                    toast.error('Erro no upload!', { id: tId })
+                                  }
+                                }} />
+                              </label>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      // Documento NÃO enviado — mostrar upload
+                      return (
+                        <div key={tipoDoc.tipo} className="rounded-xl px-4 py-3 border-2 border-dashed border-neutral-200 hover:border-[#FACC15] transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Upload className="text-neutral-300" size={18} />
+                              <div>
+                                <p className="text-sm font-medium text-neutral-500">{tipoDoc.nome}</p>
+                                <p className="text-xs text-red-400 font-semibold">Obrigatório — não enviado</p>
+                              </div>
+                            </div>
+                            <label className="cursor-pointer bg-[#FACC15] text-neutral-900 px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-bold hover:bg-[#EAB308] transition-colors shadow-sm flex-shrink-0">
+                              Enviar
+                              <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg" onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (!file) return
+                                const tId = toast.loading('Enviando documento...')
+                                const upload = await uploadDocumento(instrutor.user_id || instrutor.id, file, tipoDoc.tipo)
+                                if (upload) {
+                                  const ok = await criarDocumento(instrutor.id, {
+                                    tipo: tipoDoc.tipo,
+                                    nome_arquivo: upload.nome_arquivo,
+                                    url: upload.url,
+                                  })
+                                  if (ok) {
+                                    await solicitarNovaAnalise(instrutor.id)
+                                    toast.success('Documento enviado! Aguardando validação do suporte.', { id: tId, duration: 5000 })
+                                    recarregarInstrutor()
+                                  } else {
+                                    toast.error('Erro ao salvar documento!', { id: tId })
+                                  }
                                 } else {
-                                  toast.error('Erro ao atualizar!', { id: tId })
+                                  toast.error('Erro no upload!', { id: tId })
                                 }
-                              } else {
-                                toast.error('Erro no upload!', { id: tId })
-                              }
-                            }} />
-                          </label>
-                        )}
+                              }} />
+                            </label>
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
+
+                  {/* Documentos extras (foto_veiculo, etc) que não são obrigatórios */}
+                  {instrutor.documentos
+                    .filter(d => !['certificado_senatran', 'comprovante_residencia', 'cnh'].includes(d.tipo))
+                    .map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-4 py-3 border border-neutral-200">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <FileText className="text-neutral-400 flex-shrink-0" size={18} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{doc.nome_arquivo}</p>
+                            <p className="text-xs text-neutral-400">
+                              {doc.tipo === 'foto_veiculo' ? 'Foto do Veículo' : doc.tipo}
+                            </p>
+                          </div>
+                        </div>
+                        {doc.status === 'aprovado' && <CheckCircle className="text-green-500 flex-shrink-0" size={16} />}
+                        {doc.status === 'pendente' && <Clock className="text-amber-500 flex-shrink-0" size={16} />}
+                        {doc.status === 'recusado' && <XCircle className="text-red-500 flex-shrink-0" size={16} />}
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  }
                 </div>
               </div>
 

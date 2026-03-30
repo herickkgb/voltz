@@ -17,7 +17,10 @@ export function useInstrutores(filtrosIniciais?: FiltrosBusca) {
   }, [filtros])
 
   useEffect(() => {
-    buscar()
+    const handler = setTimeout(() => {
+      buscar()
+    }, 400) // 400ms debounce
+    return () => clearTimeout(handler)
   }, [buscar])
 
   return { instrutores, loading, filtros, setFiltros, buscar }

@@ -397,6 +397,28 @@ export async function criarInstrutor(
   return data
 }
 
+export async function verificarDocumentoUnico(documento: string): Promise<boolean> {
+  if (!supabase) return true
+  const nums = documento.replace(/\D/g, '')
+  
+  // Usar uma função RPC no supabase para burlar o RLS privado e checar existencia
+  const { data, error } = await supabase.rpc('check_documento_existe', { doc_num: nums })
+  
+  if (error) {
+    // Se a função não existir ainda, tentamos via select (pode esbarrar no RLS)
+    const { data: fallbackData } = await supabase
+      .from('instrutores_dados_privados')
+      .select('cpf')
+      .or(`cpf.eq.${nums},cnpj.eq.${nums}`)
+      .limit(1)
+      
+    if (fallbackData && fallbackData.length > 0) return false
+    return true
+  }
+  
+  return data === false // Se check_documento_existe retornar TRUE, o doc existe (então único = false)
+}
+
 export async function criarLocalizacao(
   instrutorId: string,
   dados: { cep: string; cidade: string; estado: string; bairro: string }
@@ -414,7 +436,7 @@ export async function criarLocalizacao(
 
 export async function criarVeiculo(
   instrutorId: string,
-  dados: { marca: string; modelo: string; ano: number; cambio: 'manual' | 'automatico' }
+  dados: { marca: string; modelo: string; ano: number; cambio: 'manual' | 'automatico', renavam: string }
 ): Promise<boolean> {
   const { error } = await supabase!
     .from('veiculos')

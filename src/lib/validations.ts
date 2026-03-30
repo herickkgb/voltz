@@ -34,6 +34,12 @@ export const telefoneMask = (value: string) => {
     .slice(0, 15)
 }
 
+export const renavamMask = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .slice(0, 11)
+}
+
 export function validarCPF(cpf: string): boolean {
   const nums = cpf.replace(/\D/g, '')
   if (nums.length !== 11) return false
@@ -66,6 +72,27 @@ export function validarCNPJ(cnpj: string): boolean {
   resto = soma % 11
   const dig2 = resto < 2 ? 0 : 11 - resto
   return dig2 === parseInt(nums[13])
+}
+
+export function validarRenavam(renavam: string): boolean {
+  if (!renavam) return false
+  const nums = renavam.replace(/\D/g, '')
+  if (nums.length !== 11) return false
+  
+  const renavamSemDigito = nums.substring(0, 10)
+  const renavamReverso = renavamSemDigito.split('').reverse().join('')
+  
+  let soma = 0
+  const multiplicadores = [2, 3, 4, 5, 6, 7, 8, 9, 2, 3]
+  for (let i = 0; i < 10; i++) {
+    soma += parseInt(renavamReverso[i]) * multiplicadores[i]
+  }
+  
+  const multiplicador = soma * 10
+  let digito = multiplicador % 11
+  if (digito === 10) digito = 0
+  
+  return digito === parseInt(nums[10])
 }
 
 export function validarIdade(dataNascimento: string, idadeMinima: number = 18): boolean {

@@ -5,9 +5,9 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useViaCep } from '@/hooks/useViaCep'
-import { criarInstrutor, criarLocalizacao, criarVeiculo, criarDocumento } from '@/lib/db'
+import { criarInstrutor, criarLocalizacao, criarVeiculo, criarDocumento, verificarDocumentoUnico } from '@/lib/db'
 import { uploadDocumento } from '@/lib/storage'
-import { cpfMask, cnpjMask, cepMask, telefoneMask, validarCPF, validarCNPJ, validarIdade } from '@/lib/validations'
+import { cpfMask, cnpjMask, cepMask, telefoneMask, validarCPF, validarCNPJ, validarIdade, renavamMask, validarRenavam } from '@/lib/validations'
 import { toast } from 'sonner'
 import {
   User,
@@ -40,6 +40,7 @@ interface Veiculo {
   modelo: string
   ano: string
   cambio: 'manual' | 'automatico'
+  renavam: string
 }
 
 interface DocumentoUpload {
@@ -95,7 +96,7 @@ export default function SejaInstrutorPageClient() {
 
   // Step 5 - Veículos
   const [veiculos, setVeiculos] = useState<Veiculo[]>([
-    { marca: '', modelo: '', ano: '', cambio: 'manual' },
+    { marca: '', modelo: '', ano: '', cambio: 'manual', renavam: '' },
   ])
 
   // Step 6 - Perfil
@@ -163,7 +164,7 @@ export default function SejaInstrutorPageClient() {
   }
 
   const addVeiculo = () => {
-    setVeiculos([...veiculos, { marca: '', modelo: '', ano: '', cambio: 'manual' }])
+    setVeiculos([...veiculos, { marca: '', modelo: '', ano: '', cambio: 'manual', renavam: '' }])
   }
 
   const removeVeiculo = (index: number) => {
@@ -198,7 +199,7 @@ export default function SejaInstrutorPageClient() {
       case 3:
         return cep.length === 9 && cidade && estado && bairro
       case 4:
-        return veiculos.every((v) => v.marca && v.modelo && v.ano)
+        return veiculos.every((v) => v.marca && v.modelo && v.ano && validarRenavam(v.renavam))
       case 5:
         return Number(precoHora) >= 30 && descricao.length >= 20
       default:
@@ -208,11 +209,22 @@ export default function SejaInstrutorPageClient() {
 
   const handleSubmit = async () => {
     setLoading(true)
+
+    // Validar Unicidade (apenas 1 conta/doc)
+    const doc = tipoPessoa === 'cpf' ? cpf : cnpj
+    const unico = await verificarDocumentoUnico(doc)
+    if (!unico) {
+      toast.error('Este documento já está registrado em outra conta na Voltz!')
+      setLoading(false)
+      setCurrentStep(0)
+      return
+    }
+
     try {
       // 1. Registrar usuário (Supabase Auth)
       const resultado = await registrar(email, senha, nome)
       if (!resultado.success || !resultado.userId) {
-        toast.error(resultado.error || 'Erro ao criar conta. Verifique seus dados.')
+        toast.error(resultado.error || 'Erro ao criar conta. Verifique seus dados de cadastro (ou se o email já está em uso).')
         setLoading(false)
         return
       }
@@ -261,6 +273,7 @@ export default function SejaInstrutorPageClient() {
             modelo: v.modelo,
             ano: Number(v.ano),
             cambio: v.cambio,
+            renavam: v.renavam.replace(/\D/g, '')
           })
           if (!vOk) toast.error(`Aviso: erro ao salvar veículo ${v.marca} ${v.modelo}.`)
         }
@@ -690,13 +703,21 @@ export default function SejaInstrutorPageClient() {
                       <input type="text" placeholder="Marca" value={v.marca} onChange={(e) => updateVeiculo(i, 'marca', e.target.value)} className={inputClass} />
                       <input type="text" placeholder="Modelo" value={v.modelo} onChange={(e) => updateVeiculo(i, 'modelo', e.target.value)} className={inputClass} />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <input type="number" placeholder="Ano" value={v.ano} onChange={(e) => updateVeiculo(i, 'ano', e.target.value)} className={inputClass} />
-                      <select value={v.cambio} onChange={(e) => updateVeiculo(i, 'cambio', e.target.value)} className={inputClass}>
+                    <div className="grid grid-cols-6 gap-3 pt-2">
+                      <input type="number" placeholder="Ano" value={v.ano} onChange={(e) => updateVeiculo(i, 'ano', e.target.value)} className={`${inputClass} col-span-2`} />
+                      <select value={v.cambio} onChange={(e) => updateVeiculo(i, 'cambio', e.target.value)} className={`${inputClass} col-span-2`}>
                         <option value="manual">Manual</option>
                         <option value="automatico">Automático</option>
                       </select>
+                      <input 
+                        type="text" 
+                        placeholder="RENAVAM (11 díg)" 
+                        value={v.renavam} 
+                        onChange={(e) => updateVeiculo(i, 'renavam', renavamMask(e.target.value))} 
+                        className={`${inputClass} col-span-2 ${v.renavam && !validarRenavam(v.renavam) ? '!border-red-400 !ring-red-400/20' : ''}`}
+                      />
                     </div>
+                    {v.renavam && !validarRenavam(v.renavam) && <p className="text-red-500 text-[10px] mt-0.5">Renavam inválido. Deve conter 11 dígitos corretos.</p>}
                   </div>
                 ))}
                 <button

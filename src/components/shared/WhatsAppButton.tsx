@@ -1,6 +1,7 @@
 'use client'
 
 import { Instrutor } from '@/types'
+import { registrarClickWhatsApp } from '@/lib/db'
 
 interface WhatsAppButtonProps {
   instrutor: Instrutor
@@ -9,7 +10,9 @@ interface WhatsAppButtonProps {
 }
 
 export function WhatsAppButton({ instrutor, variant = 'full', className = '' }: WhatsAppButtonProps) {
-  const abrirWhatsApp = () => {
+  const abrirWhatsApp = async () => {
+    await registrarClickWhatsApp(instrutor.id)
+    
     const telefone = instrutor.telefone
       .replace(/\D/g, '')
       .replace(/^0/, '')

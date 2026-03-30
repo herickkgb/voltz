@@ -8,7 +8,7 @@ import { Footer } from '@/components/layout/Footer'
 import { StarRating } from '@/components/shared/StarRating'
 import { CategoryBadge } from '@/components/shared/CategoryBadge'
 import { WhatsAppButton } from '@/components/shared/WhatsAppButton'
-import { getInstrutorBySlug, getMediaAvaliacao } from '@/lib/db'
+import { getInstrutorBySlug, getMediaAvaliacao, registrarVisualizacao } from '@/lib/db'
 import { MapPin, Clock, Users, Car, Shield, ChevronLeft, Calendar, Share2, Check } from 'lucide-react'
 
 const diasSemana = ['', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
@@ -29,6 +29,9 @@ export default function InstrutorPageClient() {
     getInstrutorBySlug(slug).then(data => {
       setInstrutor(data)
       setLoading(false)
+      if (data) {
+        registrarVisualizacao(data.id)
+      }
     })
   }, [slug])
 
@@ -233,7 +236,7 @@ export default function InstrutorPageClient() {
                     <div key={av.id} className="border-b border-neutral-100 last:border-0 pb-4 last:pb-0">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold text-sm">{av.nome_aluno}</span>
-                        <span className="text-neutral-400 text-xs">{av.created_at}</span>
+                        <span className="text-neutral-400 text-xs">{new Date(av.created_at).toLocaleDateString('pt-BR')}</span>
                       </div>
                       <StarRating rating={av.nota} size="sm" />
                       <p className="text-neutral-500 text-sm mt-2">{av.comentario}</p>

@@ -132,14 +132,40 @@ export async function getInstrutoresAprovados(): Promise<Instrutor[]> {
 }
 
 export async function getInstrutorBySlug(slug: string): Promise<Instrutor | null> {
-  const { data, error } = await supabase!
+  if (!supabase) return null
+
+  const { data, error } = await supabase
     .from('instrutores')
-    .select(INSTRUTOR_SELECT)
+    .select(`
+      *,
+      avaliacoes (*),
+      disponibilidades (*),
+      veiculos (*),
+      contatos (*)
+    `)
     .eq('slug', slug)
     .single()
 
   if (error || !data) return null
+  return mapInstrutorFromDB(data)
+}
 
+export async function getInstrutorById(id: string): Promise<Instrutor | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('instrutores')
+    .select(`
+      *,
+      avaliacoes (*),
+      disponibilidades (*),
+      veiculos (*),
+      contatos (*)
+    `)
+    .eq('id', id)
+    .single()
+
+  if (error || !data) return null
   return mapInstrutorFromDB(data)
 }
 
@@ -461,21 +487,43 @@ export async function solicitarNovaAnalise(id: string): Promise<boolean> {
 
 export async function atualizarDisponibilidades(
   instrutorId: string,
-  disps: { dia_semana: number; turno: 'manha' | 'tarde' | 'noite' }[]
-): Promise<boolean> {
-  const { error: err1 } = await supabase!
-    .from('disponibilidades')
-    .delete()
-    .eq('instrutor_id', instrutorId)
+  disponibilidades: { dia_semana: number; turno: 'manha' | 'tarde' | 'noite' }[]
+) {
+  // Limpa as antigas
+  await supabase!.from('disponibilidades').delete().eq('instrutor_id', instrutorId)
+  
+  // Insere as novas
+  if (disponibilidades.length > 0) {
+    const { error } = await supabase!.from('disponibilidades').insert(
+      disponibilidades.map(d => ({
+        instrutor_id: instrutorId,
+        dia_semana: d.dia_semana,
+        turno: d.turno
+      }))
+    )
+    return !error
+  }
+  return true
+}
 
-  if (err1) return false
-  if (disps.length === 0) return true
+export async function enviarAvaliacao(instrutorId: string, nomeAluno: string, nota: number, comentario: string) {
+  const { error } = await supabase!.from('avaliacoes').insert({
+    instrutor_id: instrutorId,
+    nome_aluno: nomeAluno,
+    nota,
+    comentario
+  })
+  return !error
+}
 
-  const { error: err2 } = await supabase!
-    .from('disponibilidades')
-    .insert(disps.map(d => ({ instrutor_id: instrutorId, ...d })))
+export async function registrarVisualizacao(instrutorId: string) {
+  if (!supabase) return
+  await supabase.rpc('incrementar_visualizacao', { p_instrutor_id: instrutorId })
+}
 
-  return !err2
+export async function registrarClickWhatsApp(instrutorId: string) {
+  if (!supabase) return
+  await supabase.rpc('incrementar_whatsapp', { p_instrutor_id: instrutorId })
 }
 
 // ============================================

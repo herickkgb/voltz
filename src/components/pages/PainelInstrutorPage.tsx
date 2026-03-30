@@ -37,6 +37,9 @@ import {
   Upload,
   Camera,
   Calendar,
+  BarChart3,
+  AlertTriangle,
+  Scale
 } from 'lucide-react'
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -76,8 +79,13 @@ const SUPORTE_WHATSAPP = '5511999990000'
 export default function PainelInstrutorPageClient() {
   const { user, logout, isReady, recarregarInstrutor } = useAuth()
   const { buscarCep, loading: cepLoading } = useViaCep()
-  const [tab, setTab] = useState<'perfil' | 'planos' | 'estatisticas'>('perfil')
+  const [tab, setTab] = useState<'perfil' | 'planos' | 'estatisticas' | 'avaliacoes' | 'avisos'>('perfil')
   const [planoSelecionado, setPlanoSelecionado] = useState<PlanoTipo | null>(null)
+  
+  // States para Tab Avaliacoes
+  const [nomeAlunoAvaliacao, setNomeAlunoAvaliacao] = useState('')
+  const [linkAvaliacao, setLinkAvaliacao] = useState('')
+  const [linkAvaliacaoCopiado, setLinkAvaliacaoCopiado] = useState(false)
 
   // Editing states
   const [editando, setEditando] = useState(false)
@@ -393,6 +401,8 @@ export default function PainelInstrutorPageClient() {
               { id: 'perfil' as const, label: 'Perfil', icon: User },
               { id: 'planos' as const, label: 'Planos', icon: Crown },
               { id: 'estatisticas' as const, label: 'Stats', icon: TrendingUp },
+              { id: 'avaliacoes' as const, label: 'Avaliações', icon: Star },
+              { id: 'avisos' as const, label: 'Avisos', icon: AlertTriangle },
             ].map((t) => (
               <button
                 key={t.id}
@@ -1121,11 +1131,175 @@ export default function PainelInstrutorPageClient() {
                             <MessageCircle size={12} /> Responder
                           </button>
                         )}
-                        <p className="text-xs text-neutral-400 mt-1">{av.created_at}</p>
+                        <p className="text-xs text-neutral-400 mt-1">{new Date(av.created_at).toLocaleDateString('pt-BR')}</p>
                       </div>
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: AVALIACOES */}
+          {tab === 'avaliacoes' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+                <h2 className="text-xl md:text-2xl font-bold mb-2">Solicitar Avaliação</h2>
+                <p className="text-neutral-500 text-sm md:text-base mb-6">
+                  Envie um link único para seus alunos recém-formados avaliarem suas aulas. O depoimento deles ficará visível publicamente no seu perfil!
+                </p>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 md:p-5 mb-6">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <p className="text-amber-800 text-sm font-bold mb-1">Atenção à Política Antifraude</p>
+                      <p className="text-amber-700 text-xs md:text-sm leading-relaxed">
+                        Nosso sistema conta com auditoria inteligente. Não crie links para se auto-avaliar de forma fraudulenta. Perfis detectados inflando nota artificialmente são **banidos permanentemente** da plataforma. Mande o link apenas para alunos reais.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+                  <div className="flex-1 w-full">
+                     <label className="text-sm font-semibold text-neutral-700 block mb-2">Nome Completo do Aluno</label>
+                     <input 
+                       type="text" 
+                       value={nomeAlunoAvaliacao}
+                       onChange={(e) => {
+                         setNomeAlunoAvaliacao(e.target.value)
+                         setLinkAvaliacao('')
+                       }}
+                       placeholder="Ex: João Marcelo da Silva"
+                       className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-3 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20"
+                     />
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!nomeAlunoAvaliacao.trim() || nomeAlunoAvaliacao.trim().split(' ').length < 2) {
+                        toast.error('Digite o nome e sobrenome do aluno para gerar o link profissional!')
+                        return
+                      }
+                      const payload = btoa(JSON.stringify({ i: instrutor.id, n: nomeAlunoAvaliacao.trim() }))
+                      const url = `${window.location.origin}/avaliar/${payload}`
+                      setLinkAvaliacao(url)
+                    }}
+                    className="bg-[#FACC15] text-neutral-900 px-6 py-3 rounded-xl font-bold whitespace-nowrap hover:bg-[#EAB308] w-full md:w-auto shadow-sm transition-all"
+                  >
+                     Criar Link Único
+                  </button>
+                </div>
+
+                {linkAvaliacao && (
+                  <div className="mt-6 p-4 md:p-5 border border-green-200 bg-green-50 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
+                     <p className="text-green-800 text-sm font-bold mb-2">Link gerado com sucesso!</p>
+                     <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
+                       <input type="text" readOnly value={linkAvaliacao} className="w-full bg-white border border-green-200 rounded-lg md:rounded-xl px-4 py-2.5 text-sm md:text-base text-neutral-600 outline-none truncate" />
+                       <button 
+                         onClick={() => {
+                           navigator.clipboard.writeText(linkAvaliacao)
+                           setLinkAvaliacaoCopiado(true)
+                           toast.success('Link copiado para área de transferência!')
+                           setTimeout(() => setLinkAvaliacaoCopiado(false), 2000)
+                         }}
+                         className="bg-green-600 text-white px-6 py-2.5 rounded-lg md:rounded-xl text-sm font-bold hover:bg-green-700 transition shadow-sm w-full sm:w-auto"
+                       >
+                         {linkAvaliacaoCopiado ? 'Copiado!' : 'Copiar'}
+                       </button>
+                     </div>
+                     <p className="text-green-700/90 mt-3 text-xs md:text-sm">
+                       Envie este link no WhatsApp do <strong>{nomeAlunoAvaliacao}</strong>. Quando preenchido, a nota aparecerá abaixo em tempo real!
+                     </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Lista de Avaliacoes Existentes na Plataforma */}
+              <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm mt-6">
+                <h2 className="text-lg md:text-xl font-bold mb-4">Minhas Avaliações Recebidas ({instrutor.avaliacoes.length})</h2>
+                {instrutor.avaliacoes.length === 0 ? (
+                  <div className="text-center py-12 px-4 border-2 border-dashed border-neutral-100 rounded-xl">
+                    <Star size={32} className="mx-auto text-neutral-300 mb-3" />
+                    <p className="text-neutral-500 text-sm md:text-base mb-1">Você ainda não recebeu nenhuma avaliação.</p>
+                    <p className="text-neutral-400 text-xs">Crie um link de avaliação acima e comece a construir sua reputação!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {instrutor.avaliacoes.map(av => (
+                      <div key={av.id} className="border border-neutral-100 rounded-xl p-4 md:p-5 bg-neutral-50/50">
+                        <div className="flex items-start md:items-center justify-between mb-3 flex-col md:flex-row gap-2">
+                           <div className="flex gap-3 items-center">
+                             <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                               {av.nome_aluno.charAt(0).toUpperCase()}
+                             </div>
+                             <div>
+                               <span className="font-bold text-sm block">{av.nome_aluno}</span>
+                               <span className="text-neutral-400 text-xs block">{new Date(av.created_at).toLocaleDateString('pt-BR')}</span>
+                             </div>
+                           </div>
+                           <div className="flex text-[#FACC15] items-center bg-white px-3 py-1.5 rounded-full border border-neutral-100 shadow-sm">
+                             <Star size={14} className="fill-[#FACC15]" /> 
+                             <span className="text-neutral-900 ml-1.5 text-xs font-bold">Nota {av.nota}.0</span>
+                           </div>
+                        </div>
+                        <p className="text-neutral-600 text-sm leading-relaxed pb-1">{av.comentario}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: AVISOS E REGRAS */}
+          {tab === 'avisos' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
+                    <Scale size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold">Penalidades e Regras da Voltz</h2>
+                    <p className="text-neutral-500 text-sm">Política de boa conduta no uso da plataforma.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 md:p-6">
+                    <h3 className="font-bold text-red-700 flex items-center gap-2 mb-2">
+                      <AlertTriangle size={18} /> Divergência de Preços
+                    </h3>
+                    <p className="text-neutral-600 text-sm leading-relaxed">
+                      É <strong>estritamente proibido</strong> anunciar um valor por hora no seu perfil da Voltz (ex: R$ 40) e, quando o aluno entrar em contato via WhatsApp, cobrar um valor maior (ex: R$ 70).
+                      <br/><br/>
+                      <strong>Punição:</strong> Bloqueio temporário (15 dias). Em caso de reincidência, banimento permanente.
+                    </p>
+                  </div>
+
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 md:p-6">
+                    <h3 className="font-bold text-red-700 flex items-center gap-2 mb-2">
+                      <Star size={18} /> Avaliações Falsas e Spam
+                    </h3>
+                    <p className="text-neutral-600 text-sm leading-relaxed">
+                      O uso da ferramenta "Solicitar Avaliação" para inflar a própria nota (gerar links e mandar para perfis fakes ou preencher de casa) será detectado por nossa auditoria de IP e dispositivo geolocalizado.
+                      <br/><br/>
+                      <strong>Punição:</strong> Reset de avaliações a 0 e banimento imediato sem aviso prévio.
+                    </p>
+                  </div>
+
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 md:p-6">
+                    <h3 className="font-bold text-red-700 flex items-center gap-2 mb-2">
+                      <Shield size={18} /> Assédio e Má Conduta
+                    </h3>
+                    <p className="text-neutral-600 text-sm leading-relaxed">
+                      Denúncias realizadas por alunos referentes a assédio moral/sexual, comportamentos agressivos ou discriminatórios durante as aulas ou prospecção no WhatsApp.
+                      <br/><br/>
+                      <strong>Punição:</strong> Encerramento da conta e banimento eterno, com possível denúncia das informações cadastradas (CPF/Registro) aos órgãos legais.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

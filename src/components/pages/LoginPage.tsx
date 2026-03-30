@@ -59,9 +59,16 @@ export default function LoginPageClient() {
 
       <div className="pt-24 pb-16 md:pt-32 md:pb-20 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
-          <div className="text-center mb-6 md:mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold mb-1.5 md:mb-2">Entrar</h1>
-            <p className="text-neutral-500 text-sm md:text-base">Acesse sua conta de instrutor</p>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 md:p-5 mb-6 md:mb-8 text-center shadow-sm">
+            <h1 className="text-2xl md:text-3xl font-bold text-red-900 mb-2">⚠️ Login do Instrutor</h1>
+            <p className="text-red-700 text-sm md:text-base leading-relaxed">
+              Esta área é <strong className="font-bold">exclusiva para profissionais</strong> gerenciarem seus perfis e planos.
+            </p>
+            <div className="mt-3 bg-white/60 rounded-lg p-2.5">
+              <p className="text-red-800 text-xs md:text-sm">
+                🎓 <strong className="font-semibold">Você é aluno?</strong> Não é necessário criar conta! Você pode buscar e falar com nossos instrutores livremente pela <Link href="/" className="underline hover:text-red-900 font-bold">página inicial</Link>.
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-5 md:p-8 space-y-4 md:space-y-5 shadow-sm">

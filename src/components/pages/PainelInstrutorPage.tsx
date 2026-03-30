@@ -37,7 +37,6 @@ import {
   Upload,
   Camera,
   Calendar,
-  BarChart3,
   AlertTriangle,
   Scale
 } from 'lucide-react'
@@ -1283,7 +1282,7 @@ export default function PainelInstrutorPageClient() {
                       <Star size={18} /> Avaliações Falsas e Spam
                     </h3>
                     <p className="text-neutral-600 text-sm leading-relaxed">
-                      O uso da ferramenta "Solicitar Avaliação" para inflar a própria nota (gerar links e mandar para perfis fakes ou preencher de casa) será detectado por nossa auditoria de IP e dispositivo geolocalizado.
+                      O uso da ferramenta &quot;Solicitar Avaliação&quot; para inflar a própria nota (gerar links e mandar para perfis fakes ou preencher de casa) será detectado por nossa auditoria de IP e dispositivo geolocalizado.
                       <br/><br/>
                       <strong>Punição:</strong> Reset de avaliações a 0 e banimento imediato sem aviso prévio.
                     </p>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -11,7 +10,7 @@ import { Instrutor } from '@/types'
 import { toast } from 'sonner'
 
 export function AvaliarInstrutorPageClient({ token }: { token: string }) {
-  const router = useRouter()
+  // router não usado
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [instrutor, setInstrutor] = useState<Instrutor | null>(null)
@@ -38,7 +37,7 @@ export function AvaliarInstrutorPageClient({ token }: { token: string }) {
         else setInstrutor(data as Instrutor)
         setLoading(false)
       })
-    } catch (e) {
+    } catch {
       setErroFatal(true)
       setLoading(false)
     }
@@ -63,7 +62,7 @@ export function AvaliarInstrutorPageClient({ token }: { token: string }) {
       } else {
         toast.error('Ocorreu um erro ao enviar sua avaliação. Tente novamente.')
       }
-    } catch (err) {
+    } catch {
       toast.error('Link inválido ou expirado.')
     }
     setSubmitting(false)

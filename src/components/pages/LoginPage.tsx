@@ -13,7 +13,6 @@ export default function LoginPageClient() {
   const [senha, setSenha] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [isRecuperandoSenha, setIsRecuperandoSenha] = useState(false)
-  const [tokenSent, setTokenSent] = useState(false)
   const { login, recuperarSenha, isLoading, user, isReady, isAdmin } = useAuth()
   const router = useRouter()
 
@@ -34,7 +33,6 @@ export default function LoginPageClient() {
       const resultado = await recuperarSenha(email)
       if (resultado.success) {
         toast.success('E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.')
-        setTokenSent(true)
       } else {
         toast.error(resultado.error || 'Erro ao tentar recuperar a senha')
       }
@@ -138,7 +136,7 @@ export default function LoginPageClient() {
                 <div className="text-center">
                   <button
                     type="button"
-                    onClick={() => { setIsRecuperandoSenha(false); setTokenSent(false); }}
+                    onClick={() => { setIsRecuperandoSenha(false); }}
                     className="text-neutral-500 font-semibold hover:text-neutral-700 text-sm"
                   >
                     Voltar ao login

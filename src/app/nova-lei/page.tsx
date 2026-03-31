@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description:
     'Entenda a nova lei que permite instrutores de trânsito autônomos no Brasil. Saiba como funciona, benefícios para o candidato, requisitos do instrutor e como tirar CNH mais barato com instrutor particular credenciado pelo SENATRAN.',
   openGraph: {
-    title: 'Nova Lei do Instrutor Autônomo — Voltz',
+    title: 'Nova Lei do Instrutor Autônomo — Buscar Instrutor',
     description:
       'A lei brasileira agora permite instrutores autônomos de trânsito. Entenda como isso reduz custos e melhora sua experiência ao tirar a CNH.',
   },
@@ -25,9 +25,9 @@ const articleJsonLd = {
   headline: 'Nova Lei do Instrutor Autônomo de Trânsito no Brasil',
   description:
     'Entenda como a nova regulamentação permite que instrutores de trânsito atuem de forma independente e como isso beneficia quem quer tirar a CNH.',
-  author: { '@type': 'Organization', name: 'Voltz' },
-  publisher: { '@type': 'Organization', name: 'Voltz' },
-  mainEntityOfPage: 'https://voltz.com.br/nova-lei',
+  author: { '@type': 'Organization', name: 'Buscar Instrutor' },
+  publisher: { '@type': 'Organization', name: 'Buscar Instrutor' },
+  mainEntityOfPage: 'https://buscarinstrutor.com.br/nova-lei',
 }
 
 export default function NovaLeiPage() {

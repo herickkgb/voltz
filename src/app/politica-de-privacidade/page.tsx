@@ -4,9 +4,9 @@ import { Footer } from '@/components/layout/Footer'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Política de Privacidade — Voltz',
+  title: 'Política de Privacidade — Buscar Instrutor',
   description:
-    'Saiba como a Voltz coleta, utiliza e protege seus dados pessoais. Nossa política está em conformidade com a LGPD.',
+    'Saiba como a Buscar Instrutor coleta, utiliza e protege seus dados pessoais. Nossa política está em conformidade com a LGPD.',
   alternates: {
     canonical: '/politica-de-privacidade',
   },
@@ -30,7 +30,7 @@ export default function PoliticaDePrivacidadePage() {
             <section>
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">1. Introdução</h2>
               <p>
-                A Voltz está comprometida com a proteção da privacidade dos seus usuários.
+                A Buscar Instrutor está comprometida com a proteção da privacidade dos seus usuários.
                 Esta Política de Privacidade descreve como coletamos, usamos, armazenamos e
                 protegemos seus dados pessoais, em conformidade com a Lei Geral de Proteção de
                 Dados Pessoais (LGPD — Lei nº 13.709/2018).
@@ -83,7 +83,7 @@ export default function PoliticaDePrivacidadePage() {
                 <li><strong>Autoridades competentes:</strong> quando exigido por lei, ordem judicial ou regulamentação aplicável.</li>
               </ul>
               <p className="mt-3 font-semibold text-neutral-900">
-                A Voltz nunca vende seus dados pessoais a terceiros.
+                A Buscar Instrutor nunca vende seus dados pessoais a terceiros.
               </p>
             </section>
 
@@ -111,7 +111,7 @@ export default function PoliticaDePrivacidadePage() {
               </ul>
               <p className="mt-3">
                 Para exercer qualquer desses direitos, entre em contato pelo e-mail{' '}
-                <span className="font-semibold text-neutral-900">privacidade@voltz.com.br</span>.
+                <span className="font-semibold text-neutral-900">privacidade@buscarinstrutor.com.br</span>.
               </p>
             </section>
 
@@ -128,7 +128,7 @@ export default function PoliticaDePrivacidadePage() {
             <section>
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">8. Menores de Idade</h2>
               <p>
-                A plataforma Voltz não é direcionada a menores de 18 anos. Não coletamos
+                A plataforma Buscar Instrutor não é direcionada a menores de 18 anos. Não coletamos
                 intencionalmente dados pessoais de menores. Caso identifiquemos que dados de um
                 menor foram coletados, eles serão prontamente eliminados.
               </p>
@@ -149,8 +149,8 @@ export default function PoliticaDePrivacidadePage() {
                 Para questões relacionadas à privacidade e proteção de dados, entre em contato:
               </p>
               <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 md:p-5 space-y-1 text-sm">
-                <p><strong>E-mail:</strong> privacidade@voltz.com.br</p>
-                <p><strong>E-mail geral:</strong> contato@voltz.com.br</p>
+                <p><strong>E-mail:</strong> privacidade@buscarinstrutor.com.br</p>
+                <p><strong>E-mail geral:</strong> contato@buscarinstrutor.com.br</p>
                 <p><strong>Telefone:</strong> (11) 99999-0000</p>
               </div>
             </section>

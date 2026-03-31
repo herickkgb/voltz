@@ -12,7 +12,9 @@ export default function LoginPageClient() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
-  const { login, isLoading, user, isReady, isAdmin } = useAuth()
+  const [isRecuperandoSenha, setIsRecuperandoSenha] = useState(false)
+  const [tokenSent, setTokenSent] = useState(false)
+  const { login, recuperarSenha, isLoading, user, isReady, isAdmin } = useAuth()
   const router = useRouter()
 
   // Redirect if already logged in
@@ -24,6 +26,21 @@ export default function LoginPageClient() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isRecuperandoSenha) {
+      if (!email) {
+        toast.error('Preencha o e-mail para recuperar a senha')
+        return
+      }
+      const resultado = await recuperarSenha(email)
+      if (resultado.success) {
+        toast.success('E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.')
+        setTokenSent(true)
+      } else {
+        toast.error(resultado.error || 'Erro ao tentar recuperar a senha')
+      }
+      return
+    }
+
     if (!email || !senha) {
       toast.error('Preencha todos os campos')
       return
@@ -32,7 +49,7 @@ export default function LoginPageClient() {
     const resultado = await login(email, senha)
     if (resultado.success) {
       toast.success('Login realizado com sucesso!')
-      if (email === 'admin@voltz.com.br') {
+      if (email === 'admin@buscarinstrutor.com.br') {
         router.push('/admin')
       } else {
         router.push('/painel')
@@ -86,55 +103,83 @@ export default function LoginPageClient() {
               </div>
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-neutral-700 mb-2 block">Senha</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
-                <input
-                  type={mostrarSenha ? 'text' : 'password'}
-                  placeholder="Sua senha"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  className="w-full bg-white border border-neutral-200 rounded-xl pl-12 pr-12 py-3 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setMostrarSenha(!mostrarSenha)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-900 transition-colors"
-                >
-                  {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+            {!isRecuperandoSenha && (
+              <div>
+                <label className="text-sm font-semibold text-neutral-700 mb-2 block">Senha</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+                  <input
+                    type={mostrarSenha ? 'text' : 'password'}
+                    placeholder="Sua senha"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    className="w-full bg-white border border-neutral-200 rounded-xl pl-12 pr-12 py-3 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-900 transition-colors"
+                  >
+                    {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-neutral-300 text-[#FACC15] focus:ring-[#FACC15]/20"
-                />
-                <span className="text-neutral-500">Lembrar de mim</span>
-              </label>
-              <a href="#" className="text-[#EAB308] font-semibold hover:underline">
-                Esqueci a senha
-              </a>
-            </div>
+            {isRecuperandoSenha ? (
+              <>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-[#FACC15] text-neutral-900 py-3.5 rounded-xl font-bold text-base shadow-lg shadow-yellow-400/20 hover:bg-[#EAB308] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                >
+                  {isLoading ? 'Enviando...' : 'Recuperar Senha'}
+                </button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => { setIsRecuperandoSenha(false); setTokenSent(false); }}
+                    className="text-neutral-500 font-semibold hover:text-neutral-700 text-sm"
+                  >
+                    Voltar ao login
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-neutral-300 text-[#FACC15] focus:ring-[#FACC15]/20"
+                    />
+                    <span className="text-neutral-500">Lembrar de mim</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsRecuperandoSenha(true)}
+                    className="text-[#EAB308] font-semibold hover:underline"
+                  >
+                    Esqueci a senha
+                  </button>
+                </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-[#FACC15] text-neutral-900 py-3.5 rounded-xl font-bold text-base shadow-lg shadow-yellow-400/20 hover:bg-[#EAB308] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-            >
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-[#FACC15] text-neutral-900 py-3.5 rounded-xl font-bold text-base shadow-lg shadow-yellow-400/20 hover:bg-[#EAB308] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                >
+                  {isLoading ? 'Entrando...' : 'Entrar'}
+                </button>
 
-
-            <p className="text-center text-neutral-500 text-sm">
-              Ainda não tem conta?{' '}
-              <Link href="/seja-instrutor" className="text-[#EAB308] font-semibold hover:underline">
-                Cadastre-se como instrutor
-              </Link>
-            </p>
+                <p className="text-center text-neutral-500 text-sm">
+                  Ainda não tem conta?{' '}
+                  <Link href="/seja-instrutor" className="text-[#EAB308] font-semibold hover:underline">
+                    Cadastre-se como instrutor
+                  </Link>
+                </p>
+              </>
+            )}
           </form>
         </div>
       </div>

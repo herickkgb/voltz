@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${instrutor.nome} — Instrutor de Trânsito em ${cidade}`,
     description: `${instrutor.nome} é instrutor de trânsito autônomo credenciado em ${cidade}-${estado}. ${instrutor.anos_experiencia} anos de experiência, ${instrutor.alunos_formados} alunos formados. Avaliação ${media.toFixed(1)}/5. Categoria${instrutor.categorias.length > 1 ? 's' : ''} ${instrutor.categorias.join(', ')}. R$ ${instrutor.preco_hora}/hora.`,
     openGraph: {
-      title: `${instrutor.nome} — Instrutor de Trânsito | Voltz`,
+      title: `${instrutor.nome} — Instrutor de Trânsito | Buscar Instrutor`,
       description: `Instrutor autônomo em ${cidade}. ${instrutor.anos_experiencia} anos de experiência. A partir de R$ ${instrutor.preco_hora}/hora.`,
       images: [{ url: instrutor.foto_url, alt: instrutor.nome }],
     },
@@ -71,7 +71,7 @@ export default async function Page({ params }: Props) {
     },
     priceRange: `R$ ${instrutor.preco_hora}/hora`,
     telephone: instrutor.telefone,
-    url: `https://voltz.com.br/instrutor/${instrutor.slug}`,
+    url: `https://buscarinstrutor.com.br/instrutor/${instrutor.slug}`,
   }
 
   return (

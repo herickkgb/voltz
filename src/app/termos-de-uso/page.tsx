@@ -4,9 +4,9 @@ import { Footer } from '@/components/layout/Footer'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Termos de Uso — Voltz',
+  title: 'Termos de Uso — Buscar Instrutor',
   description:
-    'Leia os Termos de Uso da plataforma Voltz. Saiba as condições de uso para candidatos e instrutores autônomos de trânsito.',
+    'Leia os Termos de Uso da plataforma Buscar Instrutor. Saiba as condições de uso para candidatos e instrutores autônomos de trânsito.',
   alternates: {
     canonical: '/termos-de-uso',
   },
@@ -30,7 +30,7 @@ export default function TermosDeUsoPage() {
             <section>
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">1. Aceitação dos Termos</h2>
               <p>
-                Ao acessar e utilizar a plataforma Voltz, você concorda com estes Termos de Uso.
+                Ao acessar e utilizar a plataforma Buscar Instrutor, você concorda com estes Termos de Uso.
                 Caso não concorde com algum dos termos aqui descritos, solicitamos que não utilize
                 nossos serviços. O uso continuado da plataforma constitui aceitação integral destes termos.
               </p>
@@ -39,11 +39,11 @@ export default function TermosDeUsoPage() {
             <section>
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">2. Sobre a Plataforma</h2>
               <p className="mb-3">
-                A Voltz é uma plataforma de tecnologia que conecta candidatos à Carteira Nacional de
+                A Buscar Instrutor é uma plataforma de tecnologia que conecta candidatos à Carteira Nacional de
                 Habilitação (CNH) com instrutores de trânsito autônomos credenciados pelo SENATRAN.
               </p>
               <p className="font-semibold text-neutral-900">
-                A Voltz não é uma autoescola e não presta serviços de formação de condutores.
+                A Buscar Instrutor não é uma autoescola e não presta serviços de formação de condutores.
                 Atuamos exclusivamente como intermediários tecnológicos, facilitando o contato entre
                 candidatos e instrutores autônomos.
               </p>
@@ -54,7 +54,7 @@ export default function TermosDeUsoPage() {
               <ul className="list-disc pl-5 space-y-2">
                 <li>Para utilizar os serviços da plataforma, é necessário criar uma conta com informações verdadeiras e atualizadas.</li>
                 <li>Você é responsável por manter a confidencialidade de sua senha e por todas as atividades realizadas em sua conta.</li>
-                <li>A Voltz reserva-se o direito de suspender ou encerrar contas que violem estes termos ou apresentem informações falsas.</li>
+                <li>A Buscar Instrutor reserva-se o direito de suspender ou encerrar contas que violem estes termos ou apresentem informações falsas.</li>
                 <li>Instrutores devem fornecer documentação válida e manter credenciais atualizadas junto ao SENATRAN.</li>
               </ul>
             </section>
@@ -78,7 +78,7 @@ export default function TermosDeUsoPage() {
                 <li>Manter seguro obrigatório e documentação do veículo em dia.</li>
                 <li>Prestar serviços com profissionalismo, pontualidade e respeito ao candidato.</li>
                 <li>Manter informações do perfil atualizadas e verídicas na plataforma.</li>
-                <li>Cumprir com os planos de assinatura contratados junto à Voltz.</li>
+                <li>Cumprir com os planos de assinatura contratados junto à Buscar Instrutor.</li>
               </ul>
             </section>
 
@@ -86,7 +86,7 @@ export default function TermosDeUsoPage() {
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">6. Pagamentos e Assinaturas</h2>
               <p className="mb-3">
                 Os pagamentos pelas aulas práticas são realizados diretamente entre o candidato e o
-                instrutor, sem intermediação da Voltz. A plataforma não se responsabiliza por disputas
+                instrutor, sem intermediação da Buscar Instrutor. A plataforma não se responsabiliza por disputas
                 financeiras entre as partes.
               </p>
               <p>
@@ -100,7 +100,7 @@ export default function TermosDeUsoPage() {
               <p>
                 Os candidatos podem avaliar e comentar sobre os instrutores após as aulas.
                 As avaliações devem ser honestas, respeitosas e baseadas em experiências reais.
-                A Voltz reserva-se o direito de remover avaliações que contenham conteúdo ofensivo,
+                A Buscar Instrutor reserva-se o direito de remover avaliações que contenham conteúdo ofensivo,
                 difamatório, spam ou que não correspondam a uma experiência real.
               </p>
             </section>
@@ -108,8 +108,8 @@ export default function TermosDeUsoPage() {
             <section>
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">8. Propriedade Intelectual</h2>
               <p>
-                Todo o conteúdo da plataforma Voltz, incluindo marca, logotipo, design, textos e
-                código-fonte, são de propriedade exclusiva da Voltz e protegidos pela legislação
+                Todo o conteúdo da plataforma Buscar Instrutor, incluindo marca, logotipo, design, textos e
+                código-fonte, são de propriedade exclusiva da Buscar Instrutor e protegidos pela legislação
                 brasileira de propriedade intelectual. É proibida a reprodução, distribuição ou
                 modificação sem autorização prévia.
               </p>
@@ -118,7 +118,7 @@ export default function TermosDeUsoPage() {
             <section>
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">9. Limitação de Responsabilidade</h2>
               <p>
-                A Voltz não se responsabiliza por danos diretos, indiretos, incidentais ou consequenciais
+                A Buscar Instrutor não se responsabiliza por danos diretos, indiretos, incidentais ou consequenciais
                 decorrentes do uso da plataforma ou da relação entre candidatos e instrutores. A
                 plataforma é fornecida &quot;como está&quot;, sem garantias de qualquer natureza, expressas
                 ou implícitas.
@@ -128,7 +128,7 @@ export default function TermosDeUsoPage() {
             <section>
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">10. Alterações nos Termos</h2>
               <p>
-                A Voltz pode atualizar estes Termos de Uso a qualquer momento. As alterações serão
+                A Buscar Instrutor pode atualizar estes Termos de Uso a qualquer momento. As alterações serão
                 comunicadas por meio da plataforma e entrarão em vigor na data de publicação.
                 O uso continuado da plataforma após alterações constitui aceitação dos novos termos.
               </p>
@@ -147,7 +147,7 @@ export default function TermosDeUsoPage() {
               <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-3 md:mb-4">12. Contato</h2>
               <p>
                 Em caso de dúvidas sobre estes Termos de Uso, entre em contato pelo e-mail{' '}
-                <span className="font-semibold text-neutral-900">contato@voltz.com.br</span> ou
+                <span className="font-semibold text-neutral-900">contato@buscarinstrutor.com.br</span> ou
                 pelo telefone <span className="font-semibold text-neutral-900">(11) 99999-0000</span>.
               </p>
             </section>

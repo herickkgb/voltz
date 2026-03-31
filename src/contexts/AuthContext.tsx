@@ -22,6 +22,7 @@ interface AuthContextType {
   login: (email: string, senha: string) => Promise<{ success: boolean; error?: string }>
   registrar: (email: string, senha: string, nome: string) => Promise<{ success: boolean; error?: string; userId?: string }>
   logout: () => Promise<void>
+  recuperarSenha: (email: string) => Promise<{ success: boolean; error?: string }>
   recarregarInstrutor: () => Promise<void>
   isAdmin: boolean
   isInstrutor: boolean
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         const meta = session.user.user_metadata || {}
-        const isEmailAdmin = session.user.email === 'admin@voltz.com.br'
+        const isEmailAdmin = session.user.email === 'admin@buscarinstrutor.com.br'
         const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
         const nome = meta.nome || (isEmailAdmin ? 'Administrador' : session.user.email?.split('@')[0]) || ''
         const authUser = await carregarInstrutor(session.user.id, session.user.email!, nome, role)
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const meta = session.user.user_metadata || {}
-          const isEmailAdmin = session.user.email === 'admin@voltz.com.br'
+          const isEmailAdmin = session.user.email === 'admin@buscarinstrutor.com.br'
           const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
           const nome = meta.nome || (isEmailAdmin ? 'Administrador' : session.user.email?.split('@')[0]) || ''
           const authUser = await carregarInstrutor(session.user.id, session.user.email!, nome, role)
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data.user) {
       const meta = data.user.user_metadata || {}
-      const isEmailAdmin = data.user.email === 'admin@voltz.com.br'
+      const isEmailAdmin = data.user.email === 'admin@buscarinstrutor.com.br'
       const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
       const nome = meta.nome || (isEmailAdmin ? 'Administrador' : data.user.email?.split('@')[0]) || ''
       const authUser = await carregarInstrutor(data.user.id, data.user.email!, nome, role)
@@ -163,10 +164,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
+  // Recuperar senha
+  const recuperarSenha = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true)
+
+    const resetUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/redefinir-senha`
+      : 'https://buscarinstrutor.com.br/redefinir-senha'
+
+    const { error } = await supabase!.auth.resetPasswordForEmail(email, {
+      redirectTo: resetUrl,
+    })
+
+    setIsLoading(false)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  }, [])
+
   // Logout
   const logout = useCallback(async () => {
     setUser(null)
-    localStorage.removeItem('voltz_user')
+    localStorage.removeItem('buscarinstrutor_user')
     if (supabase) {
       await supabase.auth.signOut({ scope: 'local' })
     }
@@ -181,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         registrar,
         logout,
+        recuperarSenha,
         recarregarInstrutor,
         isAdmin: user?.role === 'admin',
         isInstrutor: user?.role === 'instrutor',

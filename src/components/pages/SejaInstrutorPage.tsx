@@ -214,7 +214,7 @@ export default function SejaInstrutorPageClient() {
     const doc = tipoPessoa === 'cpf' ? cpf : cnpj
     const unico = await verificarDocumentoUnico(doc)
     if (!unico) {
-      toast.error('Este documento já está registrado em outra conta na Voltz!')
+      toast.error('Este documento já está registrado em outra conta na Buscar Instrutor!')
       setLoading(false)
       setCurrentStep(0)
       return
@@ -229,8 +229,9 @@ export default function SejaInstrutorPageClient() {
         return
       }
 
-      // Gerar slug a partir do nome
-      const slug = nome
+      // Gerar slug a partir da cidade, estado e nome
+      const textoBaseParaSlug = `${cidade}-${estado}-${nome}`
+      const slug = textoBaseParaSlug
         .toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-')

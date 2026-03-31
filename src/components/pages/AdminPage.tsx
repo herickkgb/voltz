@@ -187,7 +187,7 @@ export default function AdminPageClient() {
 
   const abrirWhatsApp = (telefone: string, nome: string) => {
     const numero = telefone.replace(/\D/g, '')
-    const mensagem = encodeURIComponent(`Olá ${nome}, aqui é a equipe Voltz. `)
+    const mensagem = encodeURIComponent(`Olá ${nome}, aqui é a equipe Buscar Instrutor. `)
     window.open(`https://wa.me/55${numero}?text=${mensagem}`, '_blank')
   }
 

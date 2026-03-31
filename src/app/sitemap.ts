@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 import { getSlugsAprovados } from '@/lib/db'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voltz.com.br'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://buscarinstrutor.com.br'
 
   const slugs = await getSlugsAprovados()
 

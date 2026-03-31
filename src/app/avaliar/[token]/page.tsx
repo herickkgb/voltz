@@ -2,7 +2,7 @@ import { AvaliarInstrutorPageClient } from '@/components/pages/AvaliarInstrutorP
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Avaliar Instrutor — Voltz',
+  title: 'Avaliar Instrutor — Buscar Instrutor',
   description: 'Deixe sua avaliação pública sobre o seu instrutor.',
 }
 

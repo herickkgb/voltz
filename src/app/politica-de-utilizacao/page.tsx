@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { Shield, AlertTriangle, CheckCircle, XCircle, MessageCircle, Headphones } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Política de Utilização — Voltz',
+  title: 'Política de Utilização — Buscar Instrutor',
   description:
-    'Conheça as regras de uso da plataforma Voltz. Saiba como funcionamos como intermediários entre candidatos e instrutores autônomos de trânsito.',
+    'Conheça as regras de uso da plataforma Buscar Instrutor. Saiba como funcionamos como intermediários entre candidatos e instrutores autônomos de trânsito.',
   alternates: {
     canonical: '/politica-de-utilizacao',
   },
@@ -28,7 +28,7 @@ export default function PoliticaDeUtilizacaoPage() {
             Política de <span className="text-[#EAB308]">Utilização</span>
           </h1>
           <p className="text-sm md:text-xl text-neutral-500 leading-relaxed max-w-2xl mx-auto">
-            Entenda como a Voltz funciona, nosso papel como intermediário e as regras de uso
+            Entenda como a Buscar Instrutor funciona, nosso papel como intermediário e as regras de uso
             para candidatos e instrutores.
           </p>
         </div>
@@ -40,15 +40,15 @@ export default function PoliticaDeUtilizacaoPage() {
           <div className="bg-[#FACC15]/5 border border-[#FACC15]/30 rounded-xl md:rounded-2xl p-5 md:p-10">
             <h2 className="text-xl md:text-2xl font-bold mb-4 flex items-center gap-2">
               <Shield className="text-[#EAB308]" size={24} />
-              O papel da Voltz
+              O papel da Buscar Instrutor
             </h2>
             <div className="text-neutral-600 leading-relaxed space-y-3 text-sm md:text-base">
               <p>
-                A Voltz atua <strong className="text-neutral-900">exclusivamente como intermediário tecnológico</strong>,
+                A Buscar Instrutor atua <strong className="text-neutral-900">exclusivamente como intermediário tecnológico</strong>,
                 conectando candidatos à CNH com instrutores de trânsito autônomos credenciados pelo SENATRAN.
               </p>
               <div className="bg-white rounded-xl p-4 md:p-5 border border-neutral-200 space-y-2">
-                <p className="font-bold text-neutral-900">O que a Voltz FAZ:</p>
+                <p className="font-bold text-neutral-900">O que a Buscar Instrutor FAZ:</p>
                 <ul className="space-y-1.5">
                   <li className="flex items-start gap-2 text-sm"><CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={16} /> Verifica credenciais e documentos dos instrutores</li>
                   <li className="flex items-start gap-2 text-sm"><CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={16} /> Exibe perfis verificados para busca pelos candidatos</li>
@@ -58,7 +58,7 @@ export default function PoliticaDeUtilizacaoPage() {
                 </ul>
               </div>
               <div className="bg-white rounded-xl p-4 md:p-5 border border-red-100 space-y-2">
-                <p className="font-bold text-neutral-900">O que a Voltz NÃO faz:</p>
+                <p className="font-bold text-neutral-900">O que a Buscar Instrutor NÃO faz:</p>
                 <ul className="space-y-1.5">
                   <li className="flex items-start gap-2 text-sm"><XCircle className="text-red-400 flex-shrink-0 mt-0.5" size={16} /> Não é autoescola e não presta formação de condutores</li>
                   <li className="flex items-start gap-2 text-sm"><XCircle className="text-red-400 flex-shrink-0 mt-0.5" size={16} /> Não intermedia pagamentos entre candidatos e instrutores</li>
@@ -79,7 +79,7 @@ export default function PoliticaDeUtilizacaoPage() {
 
           <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm mb-4 md:mb-6">
             <p className="text-neutral-600 text-sm md:text-base mb-4 leading-relaxed">
-              Todos os instrutores cadastrados na Voltz passam por um <strong className="text-neutral-900">processo
+              Todos os instrutores cadastrados na Buscar Instrutor passam por um <strong className="text-neutral-900">processo
               de verificação manual</strong> realizado pela nossa equipe antes de terem seus perfis publicados.
               Esse processo inclui:
             </p>
@@ -106,7 +106,7 @@ export default function PoliticaDeUtilizacaoPage() {
               <p className="text-amber-800 text-xs md:text-sm leading-relaxed">
                 <strong>Importante:</strong> Apesar da verificação, recomendamos que o candidato também confira
                 as avaliações de outros alunos, converse com o instrutor antes de fechar e verifique
-                pessoalmente as condições do veículo na primeira aula. A verificação da Voltz não substitui
+                pessoalmente as condições do veículo na primeira aula. A verificação da Buscar Instrutor não substitui
                 o bom senso do candidato.
               </p>
             </div>
@@ -187,7 +187,7 @@ export default function PoliticaDeUtilizacaoPage() {
             <div className="bg-white border border-neutral-200 rounded-xl p-4 md:p-5">
               <Headphones className="mx-auto text-blue-500 mb-2" size={24} />
               <p className="font-bold text-sm mb-1">E-mail</p>
-              <p className="text-neutral-500 text-xs">suporte@voltz.com.br</p>
+              <p className="text-neutral-500 text-xs">suporte@buscarinstrutor.com.br</p>
             </div>
           </div>
 

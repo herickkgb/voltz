@@ -110,7 +110,9 @@ export default function InstrutorPageClient() {
                 </div>
                 <p className="text-neutral-400 flex items-center justify-center md:justify-start gap-1 mb-2 md:mb-3 text-xs md:text-base">
                   <MapPin size={14} />
-                  {instrutor.localizacao.bairro}, {instrutor.localizacao.cidade} - {instrutor.localizacao.estado}
+                  {instrutor.localizacao.cidade
+                    ? `${instrutor.localizacao.bairro ? instrutor.localizacao.bairro + ', ' : ''}${instrutor.localizacao.cidade} - ${instrutor.localizacao.estado}`
+                    : 'Localização não informada'}
                 </p>
                 <div className="flex flex-wrap gap-1.5 md:gap-2 justify-center md:justify-start mb-3 md:mb-4">
                   {instrutor.categorias.map((cat) => (
@@ -141,7 +143,7 @@ export default function InstrutorPageClient() {
                   onClick={() => {
                     const url = `${window.location.origin}/instrutor/${instrutor.slug}`
                     if (navigator.share) {
-                      navigator.share({ title: `${instrutor.nome} — Voltz`, url })
+                      navigator.share({ title: `${instrutor.nome} — Buscar Instrutor`, url })
                     } else {
                       navigator.clipboard.writeText(url)
                       setLinkCopiado(true)

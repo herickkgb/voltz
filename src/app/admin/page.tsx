@@ -3,7 +3,7 @@ import AdminPageClient from '@/components/pages/AdminPage'
 
 export const metadata: Metadata = {
   title: 'Administração',
-  description: 'Painel administrativo da plataforma Voltz.',
+  description: 'Painel administrativo da plataforma Buscar Instrutor.',
   robots: { index: false, follow: false },
 }
 

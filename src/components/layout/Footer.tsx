@@ -8,8 +8,8 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-3">
-              <span className="text-xl md:text-2xl">⚡</span>
-              <span className="text-lg md:text-xl font-bold text-[#FACC15]">Voltz</span>
+              <img src="/logo.png" alt="Buscar Instrutor Logo" className="h-8 md:h-10 w-auto rounded-lg grayscale invert brightness-200" style={{ mixBlendMode: 'screen' }} />
+              <span className="text-lg md:text-xl font-bold text-[#FACC15]">Buscar Instrutor</span>
             </Link>
             <p className="text-neutral-400 text-xs md:text-sm leading-relaxed">
               Acelere sua habilitação. Conectamos você ao melhor instrutor autônomo da sua região.
@@ -23,7 +23,7 @@ export function Footer() {
               <li><Link href="/buscar" className="text-neutral-400 hover:text-white text-xs md:text-sm transition-colors">Buscar Instrutores</Link></li>
               <li><Link href="/seja-instrutor" className="text-neutral-400 hover:text-white text-xs md:text-sm transition-colors">Seja Instrutor</Link></li>
               <li><Link href="/nova-lei" className="text-neutral-400 hover:text-white text-xs md:text-sm transition-colors">Nova Lei CNH</Link></li>
-              <li><Link href="/sobre" className="text-neutral-400 hover:text-white text-xs md:text-sm transition-colors">Sobre a Voltz</Link></li>
+              <li><Link href="/sobre" className="text-neutral-400 hover:text-white text-xs md:text-sm transition-colors">Sobre a Buscar Instrutor</Link></li>
             </ul>
           </div>
 
@@ -40,7 +40,7 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-xs md:text-sm mb-3 md:mb-4 text-white">Contato</h4>
             <ul className="space-y-2 md:space-y-3">
-              <li><span className="text-neutral-400 text-xs md:text-sm">contato@voltz.com.br</span></li>
+              <li><span className="text-neutral-400 text-xs md:text-sm">contato@buscarinstrutor.com.br</span></li>
               <li><span className="text-neutral-400 text-xs md:text-sm">(11) 99999-0000</span></li>
               <li><Link href="/#faq" className="text-neutral-400 hover:text-white text-xs md:text-sm transition-colors">Perguntas Frequentes</Link></li>
             </ul>
@@ -49,10 +49,10 @@ export function Footer() {
 
         <div className="border-t border-white/10 pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-4">
           <p className="text-neutral-400 text-xs md:text-sm">
-            © 2025 Voltz. Todos os direitos reservados.
+            © 2025 Buscar Instrutor. Todos os direitos reservados.
           </p>
           <p className="text-neutral-500 text-[10px] md:text-xs text-center">
-            Voltz não é uma autoescola. Conectamos candidatos a instrutores autônomos credenciados.
+            Buscar Instrutor não é uma autoescola. Conectamos candidatos a instrutores autônomos credenciados.
           </p>
         </div>
       </div>

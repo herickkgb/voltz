@@ -99,7 +99,7 @@ export default function HomePage() {
       resposta: 'A nova legislação permite que instrutores credenciados pelo SENATRAN ofereçam aulas práticas de forma independente, sem vínculo obrigatório com autoescolas. Isso aumenta a concorrência e reduz custos para o candidato.',
     },
     {
-      pergunta: 'É seguro contratar um instrutor pela Voltz?',
+      pergunta: 'É seguro contratar um instrutor pela Buscar Instrutor?',
       resposta: 'Sim! Todos os instrutores na plataforma são verificados com registro SENATRAN válido. Além disso, você pode conferir avaliações reais de outros alunos antes de contratar.',
     },
     {
@@ -111,8 +111,8 @@ export default function HomePage() {
       resposta: 'Depende do instrutor. Muitos aceitam que o candidato use seu próprio veículo, desde que atenda aos requisitos legais (duplo comando, etc.). Filtre por essa opção na busca.',
     },
     {
-      pergunta: 'A Voltz é uma autoescola?',
-      resposta: 'Não. A Voltz é uma plataforma de conexão. Facilitamos o encontro entre candidatos e instrutores autônomos credenciados. Todo o processo de habilitação segue as regras do DETRAN.',
+      pergunta: 'A Buscar Instrutor é uma autoescola?',
+      resposta: 'Não. A Buscar Instrutor é uma plataforma de conexão. Facilitamos o encontro entre candidatos e instrutores autônomos credenciados. Todo o processo de habilitação segue as regras do DETRAN.',
     },
   ]
 

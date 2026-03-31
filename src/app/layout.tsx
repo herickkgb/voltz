@@ -10,13 +10,13 @@ const spaceGrotesk = Space_Grotesk({
   weight: ["300", "400", "500", "600", "700"],
 })
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://voltz.com.br"
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://buscarinstrutor.com.br"
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Voltz — Encontre Instrutores de Trânsito Autônomos Credenciados",
-    template: "%s | Voltz",
+    default: "Buscar Instrutor — Encontre Instrutores de Trânsito Autônomos Credenciados",
+    template: "%s | Buscar Instrutor",
   },
   description:
     "Encontre instrutores de trânsito autônomos credenciados pelo SENATRAN perto de você. Compare preços, avaliações e agende aulas práticas de direção. Nova lei CNH permite instrutor autônomo. Tire sua habilitação mais rápido e barato.",
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
     "categoria A",
     "categoria B",
   ],
-  authors: [{ name: "Voltz" }],
-  creator: "Voltz",
-  publisher: "Voltz",
+  authors: [{ name: "Buscar Instrutor" }],
+  creator: "Buscar Instrutor",
+  publisher: "Buscar Instrutor",
   robots: {
     index: true,
     follow: true,
@@ -57,8 +57,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "pt_BR",
     url: siteUrl,
-    siteName: "Voltz",
-    title: "Voltz — Encontre Instrutores de Trânsito Autônomos Credenciados",
+    siteName: "Buscar Instrutor",
+    title: "Buscar Instrutor — Encontre Instrutores de Trânsito Autônomos Credenciados",
     description:
       "Compare instrutores de trânsito autônomos credenciados. Veja avaliações, preços e agende aulas práticas de direção na sua cidade.",
     images: [
@@ -66,13 +66,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Voltz — Plataforma de instrutores de trânsito autônomos",
+        alt: "Buscar Instrutor — Plataforma de instrutores de trânsito autônomos",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Voltz — Encontre Instrutores de Trânsito Autônomos",
+    title: "Buscar Instrutor — Encontre Instrutores de Trânsito Autônomos",
     description:
       "Compare instrutores credenciados pelo SENATRAN. Preços, avaliações e aulas práticas de direção perto de você.",
     images: ["/og-image.png"],

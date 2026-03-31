@@ -23,7 +23,7 @@ export function WhatsAppButton({ instrutor, variant = 'full', className = '' }: 
 
     const mensagem = encodeURIComponent(
       `Olá ${instrutor.nome}! 👋\n\n` +
-      `Encontrei seu perfil na *Voltz* e tenho interesse ` +
+      `Encontrei seu perfil na *Buscar Instrutor* e tenho interesse ` +
       `em aulas práticas de direção. ⚡\n\n` +
       `Poderia me passar mais informações sobre:\n` +
       `• Disponibilidade de horários\n` +

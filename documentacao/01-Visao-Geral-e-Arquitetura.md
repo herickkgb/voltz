@@ -1,31 +1,161 @@
-# 1. Visão Geral e Arquitetura do Projeto Voltz
+# 1. Visao Geral e Arquitetura
 
-## 🎯 O Propósito da Aplicação
-A **Voltz** é um ecossistema digital ("marketplace") elaborado para conectar **Candidatos a Motoristas** (alunos) diretamente a **Instrutores Autônomos de Trânsito**. Seguindo o modelo das novas legislações de trânsito que permitem instrutores atuarem via CNPJ, a Voltz moderniza e barateia o processo de obtenção e treino de CNH.
+## O que e a Voltz
 
-## 👥 Tipos de Atores (Entidades de Usuário)
-1. **O Aluno (Visitante Anônimo)**: O foco da conversão. Não precisa criar conta ou realizar login. Ele explora o catálogo usando filtros pesados (Carro Automático, Categoria B, Faixa de Preço e Bairro). Quando encontra seu instrutor, a quebra da fricção o leva direto ao **WhatsApp**.
-2. **O Instrutor Autônomo**: Perfil Profissional. Precisa criar uma conta (Login/Registro). Após se cadastrar, ele tem um Painel Logístico Privado (`/painel`) para definir os valores da sua hora/aula, carros usados, zonas de atendimento (em KM) e gerenciar os documentos exigidos. Inicialmente fica `em_analise` até ser homologado.
-3. **O Administrador (Root/BackOffice)**: O usuário mestre (role: `admin`). Através do endpoint protegido (`/admin`), a central da Voltz aprova as certidões ou repudia cadastros irregulares (Suspender / Aprovar). Somente instrutores "Aprovados" ganham sinal verde para aparecerem no Front-End público.
+A **Voltz** e uma plataforma web que conecta **candidatos a motoristas** (alunos) com **instrutores autonomos de transito** credenciados pelo SENATRAN. A Voltz **NAO e uma autoescola** — e um intermediario digital que facilita o encontro entre aluno e instrutor, seguindo a **Lei 14.723/2024** que permite instrutores atuarem de forma independente.
 
-## 🏗️ Arquitetura Macroscópica
-A Voltz adota um modelo operacional moderno **Serverless Stack**:
-- **Front-End e Orquestração Renderizada**: Hospedado sob as asas da **Vercel**, rodando o framework **Next.js 14**. Toda parte de rotas e re-rendirização SSR garante que a Home Page carregue como um foguete para Mobile e os robôs de busca Google não encontrem bloqueios.
-- **Banco de Dados e Authentication**: Não temos um servidor rodando Express/Node. Gastos com isso seriam insanos. Utilizamos o **Supabase** (Postgres Gerenciado). O Front-End consome diretamente a API RESTFul debaixo do panho e toda a proteção computacional é movida do node.js para o RLS (Políticas Ocultas de Segurança do SQL).
+**URL de producao:** voltz.com.br (hospedado na Vercel)
 
-## 🗺️ Fluxograma Lógico Cidadão-Instrutor (Arquitetura)
-```mermaid
-graph TD
-    A[Visitante / Aluno] -->|Entra na Home Page| B{Permite Localização JS?}
-    B -->|Sim| C[Autopreencher Autocomplete de Cidade]
-    B -->|Não| D[Apresenta Top Instrutores Globais]
-    C --> E(Busca Filtrada)
-    D --> E(Busca Filtrada)
-    E --> F[Página do Instrutor Slug]
-    F -->|Click via WhatsAppButton| G[Conversa Direta WhatsApp - Fechou Venda!]
+---
+
+## Atores do Sistema
+
+| Ator | Descricao | Precisa de conta? | Rotas |
+|------|-----------|-------------------|-------|
+| **Visitante/Aluno** | Busca instrutores, ve perfis, contata via WhatsApp | Nao | `/`, `/buscar`, `/instrutor/[slug]`, `/nova-lei` |
+| **Instrutor** | Cadastra-se, gerencia perfil, documentos, responde avaliacoes | Sim | `/seja-instrutor`, `/painel`, `/login` |
+| **Admin** | Aprova/recusa instrutores e documentos individuais | Sim (role: admin) | `/admin` |
+
+---
+
+## Stack Tecnologica
+
+| Camada | Tecnologia | Versao | Finalidade |
+|--------|-----------|--------|------------|
+| Framework | Next.js (App Router) | 14.2.35 | SSR, routing, SEO |
+| Linguagem | TypeScript | 5.x | Tipagem estatica |
+| UI Library | React | 18.3.x | Componentes |
+| Estilizacao | Tailwind CSS | 3.4.x | Utility-first CSS |
+| Componentes | shadcn/ui | 4.x | Primitivos UI |
+| Animacoes | Framer Motion | 12.x | Transicoes suaves |
+| Icones | Lucide React | 1.7.x | Icones SVG |
+| Backend | Supabase | — | PostgreSQL + Auth + Storage |
+| Validacao | Zod | 4.x | Schema validation |
+| Formularios | React Hook Form | 7.x | Controle de forms |
+| Toasts | Sonner | 2.x | Notificacoes |
+| Deploy | Vercel | — | Hosting + CDN |
+
+---
+
+## Arquitetura Geral
+
+```
+[Browser - Visitante/Instrutor/Admin]
+              |
+         [Vercel CDN]
+              |
+    [Next.js 14 - App Router]
+              |
+    [Supabase Client SDK (@supabase/supabase-js)]
+              |
+    +----------+-----------+-------------+
+    |          |           |             |
+  [Auth]  [Database]  [Storage]   [RLS Policies]
+  (JWT)   (Postgres)  (Buckets)   (Seguranca SQL)
+              |           |
+    +---------+------+    +--------+--------+
+    |   |   |   |   |    |                  |
+  instru loca veic aval  bucket:documentos  bucket:fotos
+  tores  liza ulos iacoes  (PRIVADO)        (PUBLICO)
+         coes
+  dispon  contatos  documentos
+  ibili
+  dades   instrutores_dados_privados (RLS isolada)
 ```
 
-## 🔐 Camada de Segurança Jurídica (Isolamento PII)
-Um diferencial chave da infraestrutura do Voltz é manter o compliance estrito com a **LGPD (Lei Geral de Proteção de Dados)**. 
-- A tabela `instrutores` que rege os resultados públicos carrega dados frios: _Id, Nome, Avatar_ e _Estatísticas_.
-- Dados delicados como **CPF, RG, Certificado Senatran Bruto** foram dissecados e trancados em uma tabela independente `instrutores_dados_privados`, onde uma matriz de permissões PostgreSQL assegura que nenhum dev curioso via Client consiga sequer consultar no Postman o CPF de algum professor da rede sem portar o token criptográfico master de Admin ou ser o próprio dono.
+**Nao existe backend Node.js/Express.** Todo o acesso ao banco e feito diretamente pelo frontend via Supabase Client SDK. A seguranca e garantida por **Row Level Security (RLS)** no PostgreSQL.
+
+---
+
+## Estrutura de Pastas
+
+```
+voltz/
+├── documentacao/              # Documentacao do projeto (voce esta aqui)
+├── public/                    # Assets estaticos (imagens, etc)
+├── src/
+│   ├── app/                   # Rotas Next.js (App Router)
+│   │   ├── (home)/page.tsx    # Pagina inicial (/)
+│   │   ├── admin/page.tsx     # Painel admin (/admin)
+│   │   ├── avaliar/[token]/   # Avaliacao de instrutor via token
+│   │   ├── buscar/page.tsx    # Busca com filtros (/buscar)
+│   │   ├── instrutor/[slug]/  # Perfil publico do instrutor
+│   │   ├── lgpd/page.tsx      # Pagina LGPD
+│   │   ├── login/page.tsx     # Login (/login)
+│   │   ├── nova-lei/page.tsx  # Info sobre a Lei 14.723/2024
+│   │   ├── painel/page.tsx    # Painel do instrutor logado
+│   │   ├── politica-de-privacidade/
+│   │   ├── politica-de-utilizacao/
+│   │   ├── seja-instrutor/    # Cadastro de instrutor (6 etapas)
+│   │   ├── sobre/page.tsx     # Sobre a Voltz
+│   │   ├── termos-de-uso/
+│   │   ├── layout.tsx         # Layout raiz (AuthProvider, Toaster, fonts)
+│   │   ├── globals.css        # Tailwind imports
+│   │   ├── robots.ts          # robots.txt dinamico
+│   │   └── sitemap.ts         # Sitemap XML dinamico
+│   │
+│   ├── components/
+│   │   ├── layout/            # Navbar.tsx, Footer.tsx
+│   │   ├── pages/             # Componentes client de cada pagina
+│   │   │   ├── AdminPage.tsx
+│   │   │   ├── AvaliarInstrutorPage.tsx
+│   │   │   ├── BuscarPage.tsx
+│   │   │   ├── HomePage.tsx
+│   │   │   ├── InstrutorPage.tsx
+│   │   │   ├── LoginPage.tsx
+│   │   │   ├── PainelInstrutorPage.tsx
+│   │   │   └── SejaInstrutorPage.tsx
+│   │   ├── shared/            # Componentes reutilizaveis
+│   │   │   ├── CategoryBadge.tsx
+│   │   │   ├── JsonLd.tsx     # SEO structured data
+│   │   │   ├── SkeletonCard.tsx
+│   │   │   ├── StarRating.tsx
+│   │   │   └── WhatsAppButton.tsx  # Botao flutuante (FAB)
+│   │   └── ui/                # shadcn/ui primitives (accordion, badge, etc)
+│   │
+│   ├── contexts/
+│   │   └── AuthContext.tsx    # Provider global de autenticacao
+│   │
+│   ├── hooks/
+│   │   ├── useGeolocation.ts  # Geolocation API do browser
+│   │   ├── useInstrutores.ts  # Busca com debounce (400ms)
+│   │   └── useViaCep.ts      # Busca CEP via API ViaCEP
+│   │
+│   ├── lib/
+│   │   ├── db.ts             # TODAS as queries Supabase (CRUD completo)
+│   │   ├── storage.ts        # Upload de documentos e fotos
+│   │   ├── supabase.ts       # Singleton do client Supabase
+│   │   ├── utils.ts          # cn() para classnames
+│   │   └── validations.ts    # Mascaras (CPF, CNPJ, CEP, telefone, RENAVAM)
+│   │
+│   └── types/
+│       └── index.ts          # Todas as interfaces TypeScript
+│
+├── .env.example              # Template de variaveis de ambiente
+├── .env.local                # Credenciais reais (NAO commitado)
+├── next.config.mjs           # Config Next.js
+├── package.json
+├── tailwind.config.ts        # Config Tailwind (cores customizadas)
+└── tsconfig.json             # Config TypeScript
+```
+
+---
+
+## Padrao Pagina ↔ Componente
+
+Toda rota em `src/app/` e um **Server Component** fino que importa o componente `use client` de `src/components/pages/`:
+
+```tsx
+// src/app/buscar/page.tsx (SERVER)
+import BuscarPage from '@/components/pages/BuscarPage'
+export default function Page() { return <BuscarPage /> }
+
+// src/components/pages/BuscarPage.tsx (CLIENT)
+'use client'
+export default function BuscarPage() { ... }
+```
+
+Isso permite que:
+- As paginas tenham metadata SEO (export metadata)
+- Os componentes usem hooks, state, efeitos
+- Paginas estaticas (LGPD, termos, sobre) sejam server components puros

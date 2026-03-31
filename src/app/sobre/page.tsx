@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { Shield, Target, Heart, Zap, CheckCircle, MapPin, Star, MessageCircle, Headphones } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Sobre a Voltz — Quem Somos e Nossa Missão',
+  title: 'Sobre a Buscar Instrutor — Quem Somos e Nossa Missão',
   description:
-    'Conheça a Voltz, a plataforma que conecta candidatos à CNH com instrutores autônomos de trânsito credenciados pelo SENATRAN. Saiba mais sobre nossa missão, valores e como funcionamos.',
+    'Conheça a Buscar Instrutor, a plataforma que conecta candidatos à CNH com instrutores autônomos de trânsito credenciados pelo SENATRAN. Saiba mais sobre nossa missão, valores e como funcionamos.',
   alternates: {
     canonical: '/sobre',
   },
@@ -41,7 +41,7 @@ export default function SobrePage() {
     {
       numero: '01',
       titulo: 'Candidato busca instrutores',
-      descricao: 'O candidato acessa a Voltz e busca instrutores autônomos na sua cidade. Pode filtrar por categoria, preço e avaliações.',
+      descricao: 'O candidato acessa a Buscar Instrutor e busca instrutores autônomos na sua cidade. Pode filtrar por categoria, preço e avaliações.',
     },
     {
       numero: '02',
@@ -75,7 +75,7 @@ export default function SobrePage() {
             <span className="text-[#EAB308]">instrutor autônomo</span>
           </h1>
           <p className="text-sm md:text-xl text-neutral-500 leading-relaxed max-w-2xl mx-auto">
-            A Voltz é uma plataforma de tecnologia que facilita a conexão entre candidatos à CNH
+            A Buscar Instrutor é uma plataforma de tecnologia que facilita a conexão entre candidatos à CNH
             e instrutores de trânsito autônomos credenciados pelo SENATRAN.
           </p>
         </div>
@@ -88,20 +88,20 @@ export default function SobrePage() {
             <div className="flex items-start gap-3 md:gap-4">
               <Zap className="text-[#EAB308] flex-shrink-0 mt-1" size={24} />
               <div>
-                <h2 className="text-xl md:text-2xl font-bold mb-3">O que é a Voltz?</h2>
+                <h2 className="text-xl md:text-2xl font-bold mb-3">O que é a Buscar Instrutor?</h2>
                 <div className="text-neutral-600 leading-relaxed space-y-3 text-sm md:text-base">
                   <p>
-                    A Voltz é uma <strong className="text-neutral-900">plataforma de intermediação tecnológica</strong> que
+                    A Buscar Instrutor é uma <strong className="text-neutral-900">plataforma de intermediação tecnológica</strong> que
                     conecta candidatos que desejam tirar ou renovar a CNH com instrutores de trânsito autônomos
                     devidamente credenciados pelo SENATRAN.
                   </p>
                   <p className="bg-white rounded-lg p-3 md:p-4 border border-amber-100 font-semibold text-neutral-900">
-                    A Voltz NÃO é uma autoescola e NÃO presta serviços de formação de condutores.
+                    A Buscar Instrutor NÃO é uma autoescola e NÃO presta serviços de formação de condutores.
                     Atuamos exclusivamente como intermediários, facilitando o contato entre as partes.
                   </p>
                   <p>
                     Toda negociação, agendamento, pagamento e prestação de serviço acontece diretamente
-                    entre o candidato e o instrutor. A Voltz não se responsabiliza pela qualidade das
+                    entre o candidato e o instrutor. A Buscar Instrutor não se responsabiliza pela qualidade das
                     aulas nem pelas obrigações de cada parte.
                   </p>
                 </div>
@@ -176,7 +176,7 @@ export default function SobrePage() {
       {/* Como Funciona */}
       <section className="py-12 md:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-xl md:text-3xl font-bold text-center mb-6 md:mb-12">Como funciona a Voltz</h2>
+          <h2 className="text-xl md:text-3xl font-bold text-center mb-6 md:mb-12">Como funciona a Buscar Instrutor</h2>
           <div className="space-y-3 md:space-y-6">
             {comoFunciona.map((etapa) => (
               <div key={etapa.numero} className="flex gap-3 md:gap-6 items-start bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-sm">
@@ -210,7 +210,7 @@ export default function SobrePage() {
             <div className="bg-white border border-neutral-200 rounded-xl p-4 md:p-5">
               <MapPin className="mx-auto text-blue-500 mb-2" size={24} />
               <p className="font-bold text-sm mb-1">E-mail</p>
-              <p className="text-neutral-500 text-xs">contato@voltz.com.br</p>
+              <p className="text-neutral-500 text-xs">contato@buscarinstrutor.com.br</p>
             </div>
             <div className="bg-white border border-neutral-200 rounded-xl p-4 md:p-5">
               <Star className="mx-auto text-[#EAB308] mb-2" size={24} />

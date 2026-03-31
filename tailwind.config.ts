@@ -41,7 +41,7 @@ const config: Config = {
           DEFAULT: "var(--popover)",
           foreground: "var(--popover-foreground)",
         },
-        voltz: {
+        buscarinstrutor: {
           primary: "#FACC15",
           "primary-dark": "#EAB308",
           "primary-light": "#FEFCE8",

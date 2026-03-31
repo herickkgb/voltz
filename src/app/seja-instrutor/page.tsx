@@ -5,9 +5,9 @@ import { JsonLd } from '@/components/shared/JsonLd'
 export const metadata: Metadata = {
   title: 'Seja Instrutor de Trânsito Autônomo — Cadastre-se',
   description:
-    'Cadastre-se como instrutor de trânsito autônomo na Voltz. Receba alunos na sua região, defina seus horários e preços. Plataforma gratuita para instrutores credenciados pelo SENATRAN.',
+    'Cadastre-se como instrutor de trânsito autônomo na Buscar Instrutor. Receba alunos na sua região, defina seus horários e preços. Plataforma gratuita para instrutores credenciados pelo SENATRAN.',
   openGraph: {
-    title: 'Seja Instrutor de Trânsito — Voltz',
+    title: 'Seja Instrutor de Trânsito — Buscar Instrutor',
     description:
       'Cadastre-se gratuitamente e comece a receber alunos na sua região. Defina seus horários e preços.',
   },
@@ -24,13 +24,13 @@ const breadcrumbJsonLd = {
       '@type': 'ListItem',
       position: 1,
       name: 'Início',
-      item: 'https://voltz.com.br',
+      item: 'https://buscarinstrutor.com.br',
     },
     {
       '@type': 'ListItem',
       position: 2,
       name: 'Seja Instrutor',
-      item: 'https://voltz.com.br/seja-instrutor',
+      item: 'https://buscarinstrutor.com.br/seja-instrutor',
     },
   ],
 }

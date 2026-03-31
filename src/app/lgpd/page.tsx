@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { Shield, Lock, Eye, FileText, UserCheck, Trash2, AlertTriangle, Mail } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'LGPD — Proteção de Dados Pessoais — Voltz',
+  title: 'LGPD — Proteção de Dados Pessoais — Buscar Instrutor',
   description:
-    'Saiba como a Voltz trata seus dados pessoais em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018). Transparência e segurança para candidatos e instrutores.',
+    'Saiba como a Buscar Instrutor trata seus dados pessoais em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018). Transparência e segurança para candidatos e instrutores.',
   alternates: {
     canonical: '/lgpd',
   },
@@ -84,7 +84,7 @@ export default function LGPDPage() {
             LGPD — <span className="text-blue-600">Proteção de Dados</span>
           </h1>
           <p className="text-sm md:text-xl text-neutral-500 leading-relaxed max-w-2xl mx-auto">
-            A Voltz está comprometida com a transparência e a proteção dos seus dados pessoais,
+            A Buscar Instrutor está comprometida com a transparência e a proteção dos seus dados pessoais,
             em total conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).
           </p>
         </div>
@@ -111,10 +111,10 @@ export default function LGPDPage() {
         </div>
       </section>
 
-      {/* Como a Voltz trata seus dados */}
+      {/* Como a Buscar Instrutor trata seus dados */}
       <section className="py-10 md:py-16 bg-neutral-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-xl md:text-3xl font-bold text-center mb-6 md:mb-10">Como a Voltz trata seus dados</h2>
+          <h2 className="text-xl md:text-3xl font-bold text-center mb-6 md:mb-10">Como a Buscar Instrutor trata seus dados</h2>
 
           <div className="space-y-4 md:space-y-6">
             <div className="bg-white border border-neutral-200 rounded-xl md:rounded-2xl p-5 md:p-8">
@@ -164,7 +164,7 @@ export default function LGPDPage() {
                 Compartilhamento de dados
               </h3>
               <div className="text-sm md:text-base text-neutral-600 space-y-2">
-                <p>A Voltz <strong className="text-neutral-900">nunca vende seus dados pessoais</strong>. Compartilhamos dados apenas nas seguintes situações:</p>
+                <p>A Buscar Instrutor <strong className="text-neutral-900">nunca vende seus dados pessoais</strong>. Compartilhamos dados apenas nas seguintes situações:</p>
                 <ul className="space-y-2 mt-3">
                   <li className="flex items-start gap-2"><span className="text-blue-600 font-bold mt-0.5">•</span> <strong>Perfis públicos:</strong> informações do perfil de instrutores são visíveis para candidatos nas buscas</li>
                   <li className="flex items-start gap-2"><span className="text-blue-600 font-bold mt-0.5">•</span> <strong>Prestadores de serviço:</strong> empresas que nos auxiliam na operação (hospedagem, e-mails), sob contrato de confidencialidade</li>
@@ -220,7 +220,7 @@ export default function LGPDPage() {
             </h2>
             <div className="text-neutral-600 leading-relaxed space-y-3 text-sm md:text-base">
               <p>
-                A Voltz implementa medidas técnicas e organizacionais adequadas para proteger seus dados pessoais,
+                A Buscar Instrutor implementa medidas técnicas e organizacionais adequadas para proteger seus dados pessoais,
                 incluindo:
               </p>
               <ul className="space-y-2 ml-1">
@@ -247,7 +247,7 @@ export default function LGPDPage() {
             <div className="text-neutral-600 leading-relaxed space-y-3 text-sm md:text-base">
               <p>
                 Em caso de incidente de segurança que possa acarretar risco ou dano relevante aos titulares,
-                a Voltz se compromete a:
+                a Buscar Instrutor se compromete a:
               </p>
               <ul className="space-y-2 ml-1">
                 <li className="flex items-start gap-2"><span className="text-amber-500 font-bold mt-0.5">•</span> Comunicar a Autoridade Nacional de Proteção de Dados (ANPD) em prazo razoável</li>
@@ -273,11 +273,11 @@ export default function LGPDPage() {
           <div className="bg-neutral-50 border border-neutral-200 rounded-xl md:rounded-2xl p-5 md:p-8 max-w-md mx-auto text-left space-y-3 text-sm md:text-base">
             <div>
               <span className="text-neutral-400 text-xs block mb-0.5">E-mail do DPO</span>
-              <span className="font-semibold">privacidade@voltz.com.br</span>
+              <span className="font-semibold">privacidade@buscarinstrutor.com.br</span>
             </div>
             <div>
               <span className="text-neutral-400 text-xs block mb-0.5">E-mail geral</span>
-              <span className="font-semibold">contato@voltz.com.br</span>
+              <span className="font-semibold">contato@buscarinstrutor.com.br</span>
             </div>
             <div>
               <span className="text-neutral-400 text-xs block mb-0.5">Telefone</span>
@@ -290,7 +290,7 @@ export default function LGPDPage() {
           </div>
 
           <p className="text-neutral-400 text-xs md:text-sm mt-6 max-w-lg mx-auto">
-            A Voltz poderá solicitar informações adicionais para confirmar sua identidade
+            A Buscar Instrutor poderá solicitar informações adicionais para confirmar sua identidade
             antes de atender à requisição, garantindo a segurança dos seus dados.
           </p>
         </div>

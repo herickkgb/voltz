@@ -23,8 +23,8 @@ export function Navbar() {
         <div className="flex items-center justify-between h-14 md:h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">⚡</span>
-            <span className="text-xl font-bold text-neutral-900">Voltz</span>
+            <img src="/logo.png" alt="Buscar Instrutor Logo" className="h-8 md:h-10 w-auto rounded-lg" />
+            <span className="text-xl font-bold text-neutral-900 hidden sm:block">Buscar Instrutor</span>
           </Link>
 
           {/* Desktop Links */}

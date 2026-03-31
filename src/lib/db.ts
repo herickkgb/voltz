@@ -136,13 +136,7 @@ export async function getInstrutorBySlug(slug: string): Promise<Instrutor | null
 
   const { data, error } = await supabase
     .from('instrutores')
-    .select(`
-      *,
-      avaliacoes (*),
-      disponibilidades (*),
-      veiculos (*),
-      contatos (*)
-    `)
+    .select(INSTRUTOR_SELECT)
     .eq('slug', slug)
     .single()
 
@@ -155,13 +149,7 @@ export async function getInstrutorById(id: string): Promise<Instrutor | null> {
 
   const { data, error } = await supabase
     .from('instrutores')
-    .select(`
-      *,
-      avaliacoes (*),
-      disponibilidades (*),
-      veiculos (*),
-      contatos (*)
-    `)
+    .select(INSTRUTOR_SELECT)
     .eq('id', id)
     .single()
 

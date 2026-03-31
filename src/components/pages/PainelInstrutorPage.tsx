@@ -51,7 +51,7 @@ const TURNOS = [
 const planos: { tipo: PlanoTipo; nome: string; preco: number; recursos: string[]; destaque: boolean }[] = [
   {
     tipo: 'premium',
-    nome: 'Plano Voltz Completo',
+    nome: 'Plano Buscar Instrutor Completo',
     preco: 49.90,
     recursos: [
       'Acesso total à plataforma',
@@ -249,7 +249,7 @@ export default function PainelInstrutorPageClient() {
   }
 
   const abrirSuporte = () => {
-    const msg = encodeURIComponent(`Olá, sou o instrutor ${instrutor.nome} (${instrutor.email}). Preciso de ajuda com minha conta na Voltz.`)
+    const msg = encodeURIComponent(`Olá, sou o instrutor ${instrutor.nome} (${instrutor.email}). Preciso de ajuda com minha conta na Buscar Instrutor.`)
     window.open(`https://wa.me/${SUPORTE_WHATSAPP}?text=${msg}`, '_blank')
   }
 
@@ -1260,7 +1260,7 @@ export default function PainelInstrutorPageClient() {
                     <Scale size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold">Penalidades e Regras da Voltz</h2>
+                    <h2 className="text-xl md:text-2xl font-bold">Penalidades e Regras da Buscar Instrutor</h2>
                     <p className="text-neutral-500 text-sm">Política de boa conduta no uso da plataforma.</p>
                   </div>
                 </div>
@@ -1271,7 +1271,7 @@ export default function PainelInstrutorPageClient() {
                       <AlertTriangle size={18} /> Divergência de Preços
                     </h3>
                     <p className="text-neutral-600 text-sm leading-relaxed">
-                      É <strong>estritamente proibido</strong> anunciar um valor por hora no seu perfil da Voltz (ex: R$ 40) e, quando o aluno entrar em contato via WhatsApp, cobrar um valor maior (ex: R$ 70).
+                      É <strong>estritamente proibido</strong> anunciar um valor por hora no seu perfil da Buscar Instrutor (ex: R$ 40) e, quando o aluno entrar em contato via WhatsApp, cobrar um valor maior (ex: R$ 70).
                       <br/><br/>
                       <strong>Punição:</strong> Bloqueio temporário (15 dias). Em caso de reincidência, banimento permanente.
                     </p>

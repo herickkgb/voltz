@@ -87,7 +87,7 @@ export default function InstrutorPageClient() {
           {/* Back */}
           <Link
             href="/buscar"
-            className="inline-flex items-center gap-1 text-neutral-400 hover:text-neutral-900 text-xs md:text-sm mb-4 md:mb-8 transition-colors"
+            className="inline-flex items-center gap-1.5 text-neutral-500 hover:text-neutral-900 text-[13px] md:text-sm font-medium mb-4 md:mb-8 transition-all active:scale-95 touch-manipulation px-2 py-1 -ml-2 rounded-lg hover:bg-neutral-100"
           >
             <ChevronLeft size={14} />
             Voltar para busca
@@ -150,7 +150,7 @@ export default function InstrutorPageClient() {
                       setTimeout(() => setLinkCopiado(false), 2000)
                     }
                   }}
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs md:text-sm font-semibold text-neutral-400 hover:text-neutral-900 transition-colors"
+                  className="mt-2 md:mt-3 inline-flex items-center gap-1.5 text-[13px] md:text-sm font-semibold text-neutral-500 hover:text-neutral-900 transition-all active:scale-95 touch-manipulation bg-neutral-100 hover:bg-neutral-200 px-3 py-2 rounded-xl"
                 >
                   {linkCopiado ? <Check size={14} className="text-green-500" /> : <Share2 size={14} />}
                   {linkCopiado ? 'Link copiado!' : 'Compartilhar perfil'}

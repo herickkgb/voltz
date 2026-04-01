@@ -58,12 +58,12 @@ export default function BuscarPageClient() {
                 placeholder="Digite a cidade... ex: Belo Horizonte"
                 value={filtros.cidade || ''}
                 onChange={(e) => setFiltros({ ...filtros, cidade: e.target.value })}
-                className="w-full bg-white border border-neutral-200 rounded-xl pl-10 md:pl-12 pr-4 py-2.5 md:py-3.5 text-sm md:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all shadow-sm"
+                className="w-full bg-white border border-neutral-200 rounded-xl pl-10 md:pl-12 pr-4 py-2.5 md:py-3.5 text-[16px] md:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all shadow-sm appearance-none"
               />
             </div>
             <button
               onClick={() => setMostrarFiltros(!mostrarFiltros)}
-              className={`flex items-center justify-center gap-2 border rounded-xl px-5 py-2.5 md:px-6 md:py-3.5 font-medium text-sm md:text-base transition-all shadow-sm ${
+              className={`flex items-center justify-center gap-2 border rounded-xl px-5 py-2.5 md:px-6 md:py-3.5 font-medium text-sm md:text-base transition-all active:scale-95 touch-manipulation shadow-sm ${
                 mostrarFiltros
                   ? 'bg-[#FACC15] border-[#FACC15] text-neutral-900'
                   : 'bg-white border-neutral-200 text-neutral-700 hover:border-[#FACC15]'
@@ -129,7 +129,7 @@ export default function BuscarPageClient() {
                     placeholder="Ex: 50"
                     value={filtros.precoMin || ''}
                     onChange={(e) => setFiltros({ ...filtros, precoMin: Number(e.target.value) || undefined })}
-                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] transition-all"
+                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 text-[16px] md:text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] transition-all appearance-none"
                   />
                 </div>
                 <div>
@@ -139,7 +139,7 @@ export default function BuscarPageClient() {
                     placeholder="Ex: 150"
                     value={filtros.precoMax || ''}
                     onChange={(e) => setFiltros({ ...filtros, precoMax: Number(e.target.value) || undefined })}
-                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] transition-all"
+                    className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 text-[16px] md:text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] transition-all appearance-none"
                   />
                 </div>
               </div>
@@ -152,7 +152,7 @@ export default function BuscarPageClient() {
                   onChange={(e) =>
                     setFiltros({ ...filtros, anosExperienciaMin: Number(e.target.value) || undefined })
                   }
-                  className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 focus:outline-none focus:border-[#FACC15] transition-all"
+                  className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-[16px] md:text-sm text-neutral-900 focus:outline-none focus:border-[#FACC15] transition-all appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNhMGEwYTAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSIvPjwvc3ZnPg==')] bg-[length:16px] bg-[position:calc(100%-12px)_center] bg-no-repeat pr-10"
                 >
                   <option value="">Qualquer experiência</option>
                   <option value="3">3+ anos</option>
@@ -208,7 +208,7 @@ export default function BuscarPageClient() {
                       ordenar: (e.target.value as 'avaliacao' | 'preco') || undefined,
                     })
                   }
-                  className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 focus:outline-none focus:border-[#FACC15] transition-all"
+                  className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-[16px] md:text-sm text-neutral-900 focus:outline-none focus:border-[#FACC15] transition-all appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNhMGEwYTAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSIvPjwvc3ZnPg==')] bg-[length:16px] bg-[position:calc(100%-12px)_center] bg-no-repeat pr-10"
                 >
                   <option value="">Relevância</option>
                   <option value="avaliacao">Melhor avaliação</option>

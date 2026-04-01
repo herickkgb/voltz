@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getTodosInstrutores, atualizarStatusInstrutor, atualizarStatusDocumento, estenderPlanoManualmente } from '@/lib/db'
 import { toast } from 'sonner'
 import type { Instrutor, StatusInstrutor } from '@/types'
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, PieChart, Pie, Legend } from 'recharts'
 import {
   Shield,
   Users,
@@ -26,6 +27,11 @@ import {
   MousePointerClick,
   Activity,
   TrendingUp,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon
 } from 'lucide-react'
 
 const statusConfig: Record<StatusInstrutor, { label: string; color: string; bg: string; border: string; text: string }> = {
@@ -46,6 +52,14 @@ export default function AdminPageClient() {
   const { user, logout, isAdmin, isReady } = useAuth()
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState<StatusInstrutor | 'todos'>('todos')
+  const [filtroAssinatura, setFiltroAssinatura] = useState<'todos' | 'ativas' | 'expiradas'>('todos')
+  const [filtroPlano, setFiltroPlano] = useState<'todos' | 'premium' | 'basico'>('todos')
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const itensPorPagina = 10
+
+  const [abaAtiva, setAbaAtiva] = useState<'gerenciamento' | 'estatisticas'>('gerenciamento')
+  const [tipoGrafico, setTipoGrafico] = useState<'linha' | 'pizza'>('pizza')
+
   const [instrutorSelecionado, setInstrutorSelecionado] = useState<Instrutor | null>(null)
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [showRecusarModal, setShowRecusarModal] = useState(false)
@@ -76,21 +90,72 @@ export default function AdminPageClient() {
 
   const instrutoresFiltrados = useMemo(() => {
     return instrutores.filter((i) => {
-      const matchBusca = !busca || i.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        i.email.toLowerCase().includes(busca.toLowerCase()) ||
-        i.localizacao.cidade.toLowerCase().includes(busca.toLowerCase())
-      const matchStatus = filtroStatus === 'todos' || i.status === filtroStatus
-      return matchBusca && matchStatus
-    })
-  }, [instrutores, busca, filtroStatus])
+      const termoBusca = busca.toLowerCase()
+      const cnpjOuCpfLimpo = termoBusca.replace(/\D/g, '')
 
-  const contadores = useMemo(() => ({
-    total: instrutores.length,
-    em_analise: instrutores.filter((i) => i.status === 'em_analise').length,
-    aprovado: instrutores.filter((i) => i.status === 'aprovado').length,
-    recusado: instrutores.filter((i) => i.status === 'recusado').length,
-    suspenso: instrutores.filter((i) => i.status === 'suspenso').length,
-  }), [instrutores])
+      const matchBusca = !busca || 
+        i.nome.toLowerCase().includes(termoBusca) ||
+        i.email.toLowerCase().includes(termoBusca) ||
+        i.localizacao.cidade.toLowerCase().includes(termoBusca) ||
+        (i.cpf && i.cpf.replace(/\D/g, '').includes(cnpjOuCpfLimpo) && cnpjOuCpfLimpo.length > 3) ||
+        (i.cnpj && i.cnpj.replace(/\D/g, '').includes(cnpjOuCpfLimpo) && cnpjOuCpfLimpo.length > 3)
+
+      const matchStatus = filtroStatus === 'todos' || i.status === filtroStatus
+      
+      const isExpirado = !i.plano_expira_em || new Date(i.plano_expira_em) < new Date()
+      const matchAssinatura = filtroAssinatura === 'todos' || 
+        (filtroAssinatura === 'ativas' && !isExpirado) || 
+        (filtroAssinatura === 'expiradas' && isExpirado)
+
+      const matchPlano = filtroPlano === 'todos' || i.plano === filtroPlano
+
+      return matchBusca && matchStatus && matchAssinatura && matchPlano
+    })
+  }, [instrutores, busca, filtroStatus, filtroAssinatura, filtroPlano])
+
+  // Paginação
+  const totalPaginas = Math.ceil(instrutoresFiltrados.length / itensPorPagina)
+  const instrutoresPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * itensPorPagina
+    return instrutoresFiltrados.slice(inicio, inicio + itensPorPagina)
+  }, [instrutoresFiltrados, paginaAtual])
+
+  useEffect(() => {
+    setPaginaAtual(1)
+  }, [busca, filtroStatus, filtroAssinatura, filtroPlano])
+
+  const contadores = useMemo(() => {
+    const totalAcessos = instrutores.reduce((acc, i) => acc + (i.visualizacoes || 0), 0)
+    const totalWhatsApp = instrutores.reduce((acc, i) => acc + (i.whatsapp_clicks || 0), 0)
+    
+    // Dados para gráfico de cadastros
+    const mesesObj: Record<string, number> = {}
+    instrutores.forEach(i => {
+      const date = new Date(i.created_at)
+      if (!isNaN(date.getTime())) {
+        const mesAno = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+        mesesObj[mesAno] = (mesesObj[mesAno] || 0) + 1
+      }
+    })
+    const dadosCadastros = Object.entries(mesesObj).map(([name, total]) => ({ name, total }))
+
+    return {
+      total: instrutores.length,
+      em_analise: instrutores.filter((i) => i.status === 'em_analise').length,
+      aprovado: instrutores.filter((i) => i.status === 'aprovado').length,
+      recusado: instrutores.filter((i) => i.status === 'recusado').length,
+      suspenso: instrutores.filter((i) => i.status === 'suspenso').length,
+      totalAcessos,
+      totalWhatsApp,
+      dadosCadastros,
+      dadosPizza: [
+        { name: 'Aprovados', value: instrutores.filter((i) => i.status === 'aprovado').length, color: '#22c55e' },
+        { name: 'Em Análise', value: instrutores.filter((i) => i.status === 'em_analise').length, color: '#f59e0b' },
+        { name: 'Suspensos', value: instrutores.filter((i) => i.status === 'suspenso').length, color: '#f97316' },
+        { name: 'Recusados', value: instrutores.filter((i) => i.status === 'recusado').length, color: '#ef4444' }
+      ].filter(d => d.value > 0)
+    }
+  }, [instrutores])
 
   if (!isReady || carregando) {
     return (
@@ -229,15 +294,33 @@ export default function AdminPageClient() {
               </h1>
               <p className="text-neutral-500 text-xs md:text-sm">Gerencie instrutores da plataforma</p>
             </div>
+            
+            <div className="flex items-center gap-2 bg-white rounded-xl p-1.5 border border-neutral-200 shadow-sm w-full sm:w-auto overflow-x-auto">
+               <button
+                 onClick={() => setAbaAtiva('gerenciamento')}
+                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-1 sm:flex-none ${abaAtiva === 'gerenciamento' ? 'bg-[#FACC15] text-neutral-900 shadow-sm' : 'text-neutral-500 hover:bg-neutral-50'}`}
+               >
+                 Instrutores
+               </button>
+               <button
+                 onClick={() => setAbaAtiva('estatisticas')}
+                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-1 sm:flex-none ${abaAtiva === 'estatisticas' ? 'bg-[#FACC15] text-neutral-900 shadow-sm' : 'text-neutral-500 hover:bg-neutral-50'}`}
+               >
+                 Estatísticas
+               </button>
+            </div>
+
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-neutral-400 hover:text-red-500 transition-colors text-sm"
+              className="flex items-center gap-2 text-neutral-400 hover:text-red-500 transition-colors text-sm ml-auto sm:ml-0"
             >
               <LogOut size={16} /> Sair
             </button>
           </div>
 
-          {/* Stats */}
+          {abaAtiva === 'gerenciamento' && (
+            <>
+              {/* Stats Counters */}
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3 mb-4 md:mb-6">
             <button
               onClick={() => setFiltroStatus('todos')}
@@ -267,34 +350,64 @@ export default function AdminPageClient() {
             })}
           </div>
 
-          {/* Search */}
-          <div className="relative mb-4 md:mb-6">
-            <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
-            <input
-              type="text"
-              placeholder="Buscar por nome, e-mail ou cidade..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="w-full bg-white border border-neutral-200 rounded-xl pl-10 md:pl-12 pr-4 py-2.5 md:py-3 text-sm md:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all"
-            />
+
+          {/* Advanced Search & Filters */}
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-4 md:mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
+              <input
+                type="text"
+                placeholder="Buscar por nome, e-mail, CPF, CNPJ ou cidade..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full bg-white border border-neutral-200 rounded-xl pl-10 pr-4 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all font-medium"
+              />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={14} />
+                <select
+                  value={filtroAssinatura}
+                  onChange={(e) => setFiltroAssinatura(e.target.value as 'todos' | 'ativas' | 'expiradas')}
+                  className="w-full sm:w-auto bg-white border border-neutral-200 rounded-xl pl-9 pr-8 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[#FACC15] font-medium appearance-none"
+                >
+                  <option value="todos">Vencimento (Todos)</option>
+                  <option value="ativas">Em Dia (Ativas)</option>
+                  <option value="expiradas">Expiradas (Vencidas)</option>
+                </select>
+              </div>
+              <div className="relative">
+                <Crown className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={14} />
+                <select
+                  value={filtroPlano}
+                  onChange={(e) => setFiltroPlano(e.target.value as 'todos' | 'premium' | 'basico')}
+                  className="w-full sm:w-auto bg-white border border-neutral-200 rounded-xl pl-9 pr-8 py-2.5 md:py-3 text-sm focus:outline-none focus:border-[#FACC15] font-medium appearance-none"
+                >
+                  <option value="todos">Planos (Todos)</option>
+                  <option value="premium">Premium / Acesso Único</option>
+                  <option value="basico">Gratuito / Básico</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Table */}
-          <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+          <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden mb-6">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-neutral-100 bg-neutral-50">
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Instrutor</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Cidade</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Categorias</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Status</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Plano</th>
-                    <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Ações</th>
+                  <tr className="border-b border-neutral-100 bg-neutral-50/50">
+                    <th className="text-left text-[11px] font-bold text-neutral-500 uppercase tracking-widest px-5 py-3.5">Instrutor</th>
+                    <th className="text-left text-[11px] font-bold text-neutral-500 uppercase tracking-widest px-4 py-3.5 hidden sm:table-cell">CPF / CNPJ</th>
+                    <th className="text-left text-[11px] font-bold text-neutral-500 uppercase tracking-widest px-4 py-3.5 hidden md:table-cell">Cidade</th>
+                    <th className="text-left text-[11px] font-bold text-neutral-500 uppercase tracking-widest px-4 py-3.5">Status</th>
+                    <th className="text-left text-[11px] font-bold text-neutral-500 uppercase tracking-widest px-4 py-3.5 hidden lg:table-cell">Validade</th>
+                    <th className="text-right text-[11px] font-bold text-neutral-500 uppercase tracking-widest px-5 py-3.5">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {instrutoresFiltrados.map((instrutor) => {
+                  {instrutoresPaginados.map((instrutor) => {
                     const stConfig = statusConfig[instrutor.status]
                     const StIcon = statusIcons[instrutor.status]
                     return (
@@ -309,14 +422,10 @@ export default function AdminPageClient() {
                           </div>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
-                          <span className="text-sm text-neutral-600">{instrutor.localizacao.cidade}-{instrutor.localizacao.estado}</span>
+                          <span className="text-sm font-medium text-neutral-600">{instrutor.cnpj || instrutor.cpf || 'Não informado'}</span>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">
-                          <div className="flex gap-1">
-                            {instrutor.categorias.map((c) => (
-                              <span key={c} className="bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded text-xs font-bold">{c}</span>
-                            ))}
-                          </div>
+                          <span className="text-sm text-neutral-600">{instrutor.localizacao.cidade}-{instrutor.localizacao.estado}</span>
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 ${stConfig.bg} ${stConfig.border} border rounded-full px-2.5 py-0.5 text-xs font-semibold ${stConfig.text}`}>
@@ -325,7 +434,9 @@ export default function AdminPageClient() {
                           </span>
                         </td>
                         <td className="px-4 py-3 hidden lg:table-cell">
-                          <span className="text-sm text-neutral-600 capitalize">{instrutor.plano}</span>
+                          <span className={`text-sm font-medium ${!instrutor.plano_expira_em || new Date(instrutor.plano_expira_em) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
+                            {instrutor.plano_expira_em ? new Date(instrutor.plano_expira_em).toLocaleDateString('pt-BR') : 'Expirado'}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
@@ -376,10 +487,119 @@ export default function AdminPageClient() {
             {instrutoresFiltrados.length === 0 && (
               <div className="py-12 text-center">
                 <Users className="mx-auto text-neutral-300 mb-3" size={40} />
-                <p className="text-neutral-500">Nenhum instrutor encontrado.</p>
+                <p className="text-neutral-500">Nenhum instrutor encontrado com estes filtros.</p>
+              </div>
+            )}
+            
+            {/* Paginação */}
+            {totalPaginas > 1 && (
+              <div className="border-t border-neutral-100 bg-neutral-50/30 px-5 py-4 flex items-center justify-between">
+                <span className="text-sm text-neutral-500 hidden sm:block">
+                  Mostrando <span className="font-semibold text-neutral-900">{((paginaAtual - 1) * itensPorPagina) + 1}</span> a <span className="font-semibold text-neutral-900">{Math.min(paginaAtual * itensPorPagina, instrutoresFiltrados.length)}</span> de <span className="font-semibold text-neutral-900">{instrutoresFiltrados.length}</span> resultados
+                </span>
+                <div className="flex items-center justify-between w-full sm:w-auto sm:justify-end gap-3">
+                  <button
+                    onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                    disabled={paginaAtual === 1}
+                    className="px-3 py-1.5 border border-neutral-200 text-neutral-600 hover:bg-white bg-neutral-50 rounded-lg disabled:opacity-50 transition-all flex items-center shadow-sm"
+                  >
+                    <ChevronLeft size={16} /> Anterior
+                  </button>
+                  <span className="text-sm font-bold px-2">{paginaAtual} / {totalPaginas}</span>
+                  <button
+                    onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                    disabled={paginaAtual === totalPaginas}
+                    className="px-3 py-1.5 border border-neutral-200 text-neutral-600 hover:bg-white bg-neutral-50 rounded-lg disabled:opacity-50 transition-all flex items-center shadow-sm"
+                  >
+                    Próxima <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
+            </>
+          )}
+
+          {abaAtiva === 'estatisticas' && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="bg-white border border-neutral-200 rounded-2xl p-6">
+                   <h3 className="font-bold text-neutral-800 mb-4 flex items-center gap-2">
+                     <Activity className="text-green-500" size={20} /> Total de Acessos
+                   </h3>
+                   <div className="text-4xl font-black text-neutral-900 mb-2">{contadores.totalAcessos}</div>
+                   <p className="text-sm text-neutral-500">Visualizações gerais em todos os perfis ativos na plataforma em tempo real.</p>
+                </div>
+                <div className="bg-white border border-neutral-200 rounded-2xl p-6">
+                   <h3 className="font-bold text-neutral-800 mb-4 flex items-center gap-2">
+                     <MessageCircle className="text-green-600" size={20} /> Cliques de WhatsApp
+                   </h3>
+                   <div className="text-4xl font-black text-green-600 mb-2">{contadores.totalWhatsApp}</div>
+                   <p className="text-sm text-neutral-500">Número de alunos que ativamente tentaram contatar instrutores pelo WhatsApp.</p>
+                </div>
+              </div>
+
+              <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="border-b border-neutral-100 p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-neutral-900 text-lg">Visão Gráfica</h3>
+                    <p className="text-sm text-neutral-500">Acompanhamento dos instrutores cadastrados</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 bg-neutral-100 p-1.5 rounded-xl self-stretch md:self-auto">
+                    <button
+                      onClick={() => setTipoGrafico('pizza')}
+                      className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tipoGrafico === 'pizza' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}
+                    >
+                      <PieChartIcon size={16} /> Pizza
+                    </button>
+                    <button
+                      onClick={() => setTipoGrafico('linha')}
+                      className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tipoGrafico === 'linha' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}
+                    >
+                      <LineChartIcon size={16} /> Linha
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 md:p-8 h-[400px] w-full flex items-center justify-center bg-neutral-50/30">
+                  {tipoGrafico === 'pizza' ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={contadores.dadosPizza}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={130}
+                          innerRadius={60}
+                          fill="#8884d8"
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {contadores.dadosPizza.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} itemStyle={{ color: '#171717' }} />
+                        <Legend verticalAlign="bottom" height={36} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={contadores.dadosCadastros.slice(-12)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
+                        <YAxis axisLine={false} tickLine={false} />
+                        <Tooltip cursor={{ stroke: '#e5e5e5', strokeWidth: 2, strokeDasharray: '5 5' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
+                        <Line type="monotone" dataKey="total" name="Cadastros" stroke="#FACC15" strokeWidth={4} dot={{ r: 6, fill: '#FACC15', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 

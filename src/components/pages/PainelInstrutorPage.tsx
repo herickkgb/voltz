@@ -146,7 +146,7 @@ export default function PainelInstrutorPageClient() {
   const isExpirado = !instrutor.plano_expira_em || new Date(instrutor.plano_expira_em) < new Date()
   const diasRestantes = instrutor.plano_expira_em ? Math.max(0, Math.ceil((new Date(instrutor.plano_expira_em).getTime() - new Date().getTime()) / (1000 * 3600 * 24))) : 0
 
-  const inputClass = 'w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all'
+  const inputClass = 'w-full bg-white border border-neutral-200 rounded-xl px-4 py-3 md:py-2.5 text-neutral-900 text-[16px] md:text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all appearance-none'
 
   const handleLogout = async () => {
     await logout()
@@ -457,8 +457,8 @@ export default function PainelInstrutorPageClient() {
             )
           )}
 
-          {/* Tabs */}
-          <div className="flex gap-1 bg-neutral-100 rounded-xl p-1 mb-4 md:mb-6">
+          {/* Tabs - Mobile Optimized Scroll */}
+          <div className="flex gap-1.5 md:gap-2 bg-neutral-100 rounded-xl p-1.5 mb-4 md:mb-6 overflow-x-auto hide-scrollbar snap-x touch-pan-x">
             {[
               { id: 'perfil' as const, label: 'Perfil', icon: User },
               { id: 'planos' as const, label: 'Planos', icon: Crown },
@@ -469,10 +469,10 @@ export default function PainelInstrutorPageClient() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 md:gap-2 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                className={`snap-center flex-shrink-0 flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 rounded-lg text-[13px] md:text-sm font-semibold transition-all active:scale-95 touch-manipulation min-w-[100px] md:min-w-[120px] ${
                   tab === t.id
                     ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-700'
+                    : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50'
                 }`}
               >
                 <t.icon size={16} />
@@ -526,7 +526,7 @@ export default function PainelInstrutorPageClient() {
                 <div className="flex justify-end">
                   <button
                     onClick={iniciarEdicao}
-                    className="flex items-center gap-2 bg-[#FACC15] text-neutral-900 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#EAB308] transition-all"
+                    className="flex items-center gap-2 bg-[#FACC15] text-neutral-900 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#EAB308] transition-all active:scale-95 touch-manipulation"
                   >
                     <Pencil size={16} /> Editar Perfil
                   </button>
@@ -544,10 +544,10 @@ export default function PainelInstrutorPageClient() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0 w-full md:w-auto">
-                    <button onClick={cancelarEdicao} className="flex-1 md:flex-none flex items-center justify-center gap-1 border border-neutral-200 text-neutral-600 px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:bg-neutral-50 transition-colors">
+                    <button onClick={cancelarEdicao} className="flex-1 md:flex-none flex items-center justify-center gap-1 border border-neutral-200 text-neutral-600 px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:bg-neutral-50 transition-all active:scale-95 touch-manipulation">
                       <X size={12} /> Cancelar
                     </button>
-                    <button onClick={salvarEdicao} disabled={salvando} className="flex-1 md:flex-none flex items-center justify-center gap-1 bg-[#FACC15] text-neutral-900 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold hover:bg-[#EAB308] transition-colors disabled:opacity-50">
+                    <button onClick={salvarEdicao} disabled={salvando} className="flex-1 md:flex-none flex items-center justify-center gap-1 bg-[#FACC15] text-neutral-900 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold hover:bg-[#EAB308] transition-all disabled:opacity-50 active:scale-95 touch-manipulation">
                       <Save size={12} /> {salvando ? 'Salvando...' : 'Salvar'}
                     </button>
                   </div>

@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { useAuth } from '@/contexts/AuthContext'
-import { getTodosInstrutores, atualizarStatusInstrutor, atualizarStatusDocumento } from '@/lib/db'
+import { getTodosInstrutores, atualizarStatusInstrutor, atualizarStatusDocumento, estenderPlanoManualmente } from '@/lib/db'
 import { toast } from 'sonner'
 import type { Instrutor, StatusInstrutor } from '@/types'
 import {
@@ -22,6 +22,10 @@ import {
   Car,
   LogOut,
   X,
+  Crown,
+  MousePointerClick,
+  Activity,
+  TrendingUp,
 } from 'lucide-react'
 
 const statusConfig: Record<StatusInstrutor, { label: string; color: string; bg: string; border: string; text: string }> = {
@@ -182,6 +186,20 @@ export default function AdminPageClient() {
       toast.success(`${nome} foi suspenso da plataforma.`)
     } catch {
       toast.error(`Erro ao suspender ${nome}. Verifique sua conexão.`)
+    }
+  }
+
+  const handleEstenderPlano = async (id: string) => {
+    try {
+      const ok = await estenderPlanoManualmente(id, 30)
+      if (!ok) {
+        toast.error('Erro ao estender plano.')
+        return
+      }
+      toast.success('+30 dias adicionados com sucesso!')
+      carregarInstrutores()
+    } catch {
+      toast.error('Erro de conexão ao estender plano.')
     }
   }
 
@@ -437,6 +455,45 @@ export default function AdminPageClient() {
                   <span className="text-neutral-400 text-xs block mb-1">Plano</span>
                   <span className="font-medium capitalize">{instrutorSelecionado.plano}</span>
                 </div>
+                <div className="bg-neutral-50 rounded-xl p-3">
+                  <span className="text-neutral-400 text-xs block mb-1">Validade do Plano</span>
+                  <span className={`font-medium ${
+                    (!instrutorSelecionado.plano_expira_em || new Date(instrutorSelecionado.plano_expira_em) < new Date())
+                      ? 'text-red-500' : 'text-green-600'
+                  }`}>
+                    {instrutorSelecionado.plano_expira_em 
+                      ? new Date(instrutorSelecionado.plano_expira_em).toLocaleDateString('pt-BR') 
+                      : 'Expirado'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Analytics Section */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 mb-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <Activity size={96} className="text-[#FACC15]" />
+                </div>
+                <h4 className="text-[#FACC15] font-bold mb-4 flex items-center gap-2 relative z-10">
+                  <TrendingUp size={16} /> Engajamento e Estatísticas
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
+                  <div className="bg-neutral-800/80 rounded-lg p-3 border border-neutral-700/50">
+                    <span className="text-neutral-400 text-xs flex items-center gap-1.5 mb-1"><Eye size={12}/> Vistas do Perfil</span>
+                    <span className="text-white text-xl font-bold">{instrutorSelecionado.visualizacoes || 0}</span>
+                  </div>
+                  <div className="bg-neutral-800/80 rounded-lg p-3 border border-neutral-700/50">
+                    <span className="text-neutral-400 text-xs flex items-center gap-1.5 mb-1"><MousePointerClick size={12}/> Cliques (WhatsApp)</span>
+                    <span className="text-white text-xl font-bold">{instrutorSelecionado.whatsapp_clicks || 0}</span>
+                  </div>
+                  <div className="bg-neutral-800/80 rounded-lg p-3 border border-neutral-700/50">
+                    <span className="text-neutral-400 text-xs flex items-center gap-1.5 mb-1"><Clock size={12}/> Último Acesso</span>
+                    <span className="text-white text-sm font-medium block">
+                      {instrutorSelecionado.ultimo_login 
+                        ? new Date(instrutorSelecionado.ultimo_login).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' }) 
+                        : 'Nunca acessou'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Description */}
@@ -585,6 +642,13 @@ export default function AdminPageClient() {
                   className="flex items-center gap-2 bg-green-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-600 transition-colors"
                 >
                   <MessageCircle size={16} /> WhatsApp
+                </button>
+                <button
+                  onClick={() => handleEstenderPlano(instrutorSelecionado.id)}
+                  className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-600 transition-colors"
+                  title="Estender o plano deste instrutor por mais 30 dias"
+                >
+                  <Crown size={16} /> Renovar +30 Dias
                 </button>
                 {(instrutorSelecionado.status === 'em_analise' || instrutorSelecionado.status === 'recusado') && (
                   <button

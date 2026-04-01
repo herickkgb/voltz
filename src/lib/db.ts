@@ -38,6 +38,7 @@ function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
     status: row.status as StatusInstrutor,
     motivo_recusa: (row.motivo_recusa as string) || undefined,
     plano: row.plano as Instrutor['plano'],
+    plano_expira_em: (row.plano_expira_em as string) || undefined,
     slug: row.slug as string,
     created_at: (row.criado_em as string) || (row.created_at as string),
     localizacao: locData ? {
@@ -88,6 +89,8 @@ function mapInstrutorFromDB(row: Record<string, unknown>): Instrutor {
       motivo_recusa: (d.motivo_recusa as string) || undefined,
     })),
     visualizacoes: (row.visualizacoes as number) || 0,
+    whatsapp_clicks: (row.whatsapp_clicks as number) || 0,
+    ultimo_login: (row.ultimo_login as string) || undefined,
     contatos: ((row.contatos as Record<string, unknown>[]) || []).map(c => ({
       id: c.id as string,
       instrutor_id: c.instrutor_id as string,
@@ -121,6 +124,7 @@ export async function getInstrutoresAprovados(): Promise<Instrutor[]> {
     .from('instrutores')
     .select(INSTRUTOR_SELECT)
     .eq('status', 'aprovado')
+    .gte('plano_expira_em', new Date().toISOString())
     .order('criado_em', { ascending: false })
 
   if (error) {
@@ -163,6 +167,7 @@ export async function buscarInstrutores(filtros: FiltrosBusca): Promise<Instruto
     .from('instrutores')
     .select(INSTRUTOR_SELECT)
     .eq('status', 'aprovado')
+    .gte('plano_expira_em', new Date().toISOString())
 
   if (filtros.categorias?.length) {
     query = query.overlaps('categorias', filtros.categorias)
@@ -533,7 +538,20 @@ export async function registrarVisualizacao(instrutorId: string) {
 
 export async function registrarClickWhatsApp(instrutorId: string) {
   if (!supabase) return
-  await supabase.rpc('incrementar_whatsapp', { p_instrutor_id: instrutorId })
+  // Tentar incrementar usando RPC se existir, senão atualizar direto (com RLS isso pode falhar)
+  const { error } = await supabase.rpc('incrementar_whatsapp', { p_instrutor_id: instrutorId })
+  if (error) {
+    // Fallback manual (pode ter condição de corrida, mas serve enquanto RPC não for criado)
+    const { data } = await supabase.from('instrutores').select('whatsapp_clicks').eq('id', instrutorId).single()
+    if (data) {
+      await supabase.from('instrutores').update({ whatsapp_clicks: (data.whatsapp_clicks || 0) + 1 }).eq('id', instrutorId)
+    }
+  }
+}
+
+export async function atualizarUltimoLogin(instrutorId: string) {
+  if (!supabase) return
+  await supabase.from('instrutores').update({ ultimo_login: new Date().toISOString() }).eq('id', instrutorId)
 }
 
 // ============================================
@@ -620,4 +638,109 @@ export async function getEstatisticasGlobais() {
     cidades: cityMap.size,
     listaCidades,
   }
+}
+
+// ============================================
+// Assinaturas e Códigos de Ativação
+// ============================================
+
+export async function gerarCodigoAtivacao(diasValidade: number, adminId?: string): Promise<string | null> {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const part1 = Array.from({ length: 4 }).map(() => chars.charAt(Math.floor(Math.random() * chars.length))).join('')
+  const part2 = Array.from({ length: 4 }).map(() => chars.charAt(Math.floor(Math.random() * chars.length))).join('')
+  const codigo = `VOLTZ-${part1}-${part2}`
+
+  const { error } = await supabase!
+    .from('codigos_ativacao')
+    .insert({
+      codigo,
+      dias_validade: diasValidade,
+      criado_por: adminId || null
+    })
+
+  if (error) {
+    console.error('Erro ao gerar código:', error)
+    return null
+  }
+  return codigo
+}
+
+export async function aplicarCodigoAtivacao(instrutorId: string, codigo: string): Promise<{ success: boolean; message: string }> {
+  const { data: codeData, error: codeErr } = await supabase!
+    .from('codigos_ativacao')
+    .select('*')
+    .eq('codigo', codigo)
+    .single()
+
+  if (codeErr || !codeData) {
+    return { success: false, message: 'Código inválido ou não encontrado.' }
+  }
+
+  if (codeData.usado) {
+    return { success: false, message: 'Este código já foi utilizado.' }
+  }
+
+  const { data: instrData, error: instrErr } = await supabase!
+    .from('instrutores')
+    .select('plano_expira_em')
+    .eq('id', instrutorId)
+    .single()
+
+  if (instrErr || !instrData) {
+    return { success: false, message: 'Instrutor não encontrado.' }
+  }
+
+  const now = new Date()
+  let currentExp = instrData.plano_expira_em ? new Date(instrData.plano_expira_em) : now
+  if (currentExp < now) currentExp = now
+
+  currentExp.setDate(currentExp.getDate() + codeData.dias_validade)
+  const newExpIso = currentExp.toISOString()
+
+  const { error: updateInstrErr } = await supabase!
+    .from('instrutores')
+    .update({ plano_expira_em: newExpIso })
+    .eq('id', instrutorId)
+
+  if (updateInstrErr) {
+    return { success: false, message: 'Erro ao atualizar a expiração do plano.' }
+  }
+
+  await supabase!
+    .from('codigos_ativacao')
+    .update({
+      usado: true,
+      usado_em: now.toISOString(),
+      instrutor_id: instrutorId
+    })
+    .eq('id', codeData.id)
+
+  return { success: true, message: `Plano estendido até ${currentExp.toLocaleDateString('pt-BR')} com sucesso!` }
+}
+
+export async function estenderPlanoManualmente(instrutorId: string, diasExtensao: number, dataBase?: Date): Promise<boolean> {
+  const { data, error } = await supabase!
+    .from('instrutores')
+    .select('plano_expira_em')
+    .eq('id', instrutorId)
+    .single()
+
+  if (error || !data) return false
+
+  const now = new Date()
+  let currentExp = data.plano_expira_em ? new Date(data.plano_expira_em) : now
+  if (dataBase) {
+    currentExp = dataBase
+  } else if (currentExp < now) {
+    currentExp = now
+  }
+
+  currentExp.setDate(currentExp.getDate() + diasExtensao)
+
+  const { error: updErr } = await supabase!
+    .from('instrutores')
+    .update({ plano_expira_em: currentExp.toISOString() })
+    .eq('id', instrutorId)
+
+  return !updErr
 }

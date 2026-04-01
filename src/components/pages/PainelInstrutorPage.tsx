@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { useAuth } from '@/contexts/AuthContext'
-import { atualizarPerfilInstrutor, atualizarLocalizacao, atualizarFotoPerfil, solicitarNovaAnalise, atualizarDocumento, criarDocumento, atualizarDisponibilidades } from '@/lib/db'
+import { atualizarPerfilInstrutor, atualizarLocalizacao, atualizarFotoPerfil, solicitarNovaAnalise, atualizarDocumento, criarDocumento, atualizarDisponibilidades, aplicarCodigoAtivacao } from '@/lib/db'
 import { uploadFoto, uploadDocumento } from '@/lib/storage'
 import { telefoneMask, cepMask } from '@/lib/validations'
 import { toast } from 'sonner'
@@ -51,10 +51,10 @@ const TURNOS = [
 const planos: { tipo: PlanoTipo; nome: string; preco: number; recursos: string[]; destaque: boolean }[] = [
   {
     tipo: 'premium',
-    nome: 'Plano Buscar Instrutor Completo',
+    nome: 'Plano Único - Acesso Completo',
     preco: 49.90,
     recursos: [
-      'Acesso total à plataforma',
+      'Acesso Mensal total à plataforma',
       'Perfil aprovado e nas buscas',
       'Receber contatos ilimitados de alunos',
       'Selo "Verificado" de Instrutor',
@@ -79,7 +79,10 @@ export default function PainelInstrutorPageClient() {
   const { user, logout, isReady, recarregarInstrutor } = useAuth()
   const { buscarCep, loading: cepLoading } = useViaCep()
   const [tab, setTab] = useState<'perfil' | 'planos' | 'estatisticas' | 'avaliacoes' | 'avisos'>('perfil')
-  const [planoSelecionado, setPlanoSelecionado] = useState<PlanoTipo | null>(null)
+  
+  // Mensalidade / Código
+  const [codigoAtivacao, setCodigoAtivacao] = useState('')
+  const [resgatandoCodigo, setResgatandoCodigo] = useState(false)
   
   // States para Tab Avaliacoes
   const [nomeAlunoAvaliacao, setNomeAlunoAvaliacao] = useState('')
@@ -139,6 +142,9 @@ export default function PainelInstrutorPageClient() {
   const instrutor = user.instrutor
   const status = statusConfig[instrutor.status]
   const StatusIcon = status.icon
+
+  const isExpirado = !instrutor.plano_expira_em || new Date(instrutor.plano_expira_em) < new Date()
+  const diasRestantes = instrutor.plano_expira_em ? Math.max(0, Math.ceil((new Date(instrutor.plano_expira_em).getTime() - new Date().getTime()) / (1000 * 3600 * 24))) : 0
 
   const inputClass = 'w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all'
 
@@ -253,12 +259,31 @@ export default function PainelInstrutorPageClient() {
     window.open(`https://wa.me/${SUPORTE_WHATSAPP}?text=${msg}`, '_blank')
   }
 
-  const handleAssinar = (tipo: PlanoTipo) => {
-    setPlanoSelecionado(tipo)
-    setTimeout(() => {
-      setPlanoSelecionado(null)
-      toast.info(`Plano ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} selecionado! O pagamento será disponibilizado em breve.`)
-    }, 1000)
+  const handleAssinar = () => {
+    const msg = encodeURIComponent(`Olá! Sou o instrutor ${instrutor.nome} (${instrutor.email}) e gostaria de assinar o plano único da plataforma Buscar Instrutor.`)
+    window.open(`https://wa.me/5531995309630?text=${msg}`, '_blank')
+  }
+
+  const handleResgatarCodigo = async () => {
+    if (!codigoAtivacao.trim()) {
+      toast.error('Digite um código válido.')
+      return
+    }
+    setResgatandoCodigo(true)
+    try {
+      const res = await aplicarCodigoAtivacao(instrutor.id, codigoAtivacao.trim().toUpperCase())
+      if (res.success) {
+        toast.success(res.message)
+        setCodigoAtivacao('')
+        setTimeout(() => window.location.reload(), 2000)
+      } else {
+        toast.error(res.message)
+      }
+    } catch {
+      toast.error('Erro ao resgatar código. Verifique sua conexão.')
+    } finally {
+      setResgatandoCodigo(false)
+    }
   }
 
   return (
@@ -392,6 +417,44 @@ export default function PainelInstrutorPageClient() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Banner de Expiração / Mensalidade */}
+          {instrutor.status === 'aprovado' && (
+            isExpirado ? (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={22} />
+                  <div>
+                    <h3 className="font-bold text-red-800 mb-1">Assinatura Expirada</h3>
+                    <p className="text-red-700 text-sm leading-relaxed mb-3">
+                      Seu perfil <strong>NÃO</strong> está aparecendo nas buscas devido à falta de pagamento. Renove sua assinatura para voltar a receber alunos da sua região.
+                    </p>
+                    <button
+                      onClick={() => setTab('planos')}
+                      className="inline-flex items-center gap-1 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                    >
+                      <Crown size={14} /> Renovar Agora
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="text-green-600" size={20} />
+                  <div>
+                    <p className="text-green-800 font-bold text-sm">Perfil Ativo nas Buscas</p>
+                    <p className="text-green-700 text-xs">Sua assinatura vence em {diasRestantes} dias.</p>
+                  </div>
+                </div>
+                {diasRestantes <= 5 && (
+                  <button onClick={() => setTab('planos')} className="text-xs font-bold text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors">
+                    Renovar
+                  </button>
+                )}
+              </div>
+            )
           )}
 
           {/* Tabs */}
@@ -960,20 +1023,20 @@ export default function PainelInstrutorPageClient() {
           {tab === 'planos' && (
             <div>
               <div className="text-center mb-5 md:mb-8">
-                <h2 className="text-xl md:text-2xl font-bold mb-1.5 md:mb-2">Planos de Assinatura</h2>
-                <p className="text-neutral-500 text-sm md:text-base">Escolha o plano ideal para aumentar sua visibilidade.</p>
-                <p className="text-neutral-400 text-xs md:text-sm mt-1">Assine um plano para manter seu perfil ativo.</p>
+                <h2 className="text-xl md:text-2xl font-bold mb-1.5 md:mb-2">Assinatura Mensal</h2>
+                <p className="text-neutral-500 text-sm md:text-base">O nosso plano único oferece acesso completo a todas as ferramentas.</p>
+                <p className="text-neutral-400 text-xs md:text-sm mt-1">Mantenha seu perfil ativo e receba alunos da sua região.</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5 max-w-4xl mx-auto">
+              <div className="flex justify-center max-w-lg mx-auto">
                 {planos.map((plano) => {
                   const isCurrentPlan = instrutor.plano === plano.tipo
                   return (
                     <div
                       key={plano.tipo}
-                      className={`relative bg-white border-2 rounded-xl md:rounded-2xl p-4 md:p-6 transition-all ${
+                      className={`relative bg-white border-2 rounded-xl md:rounded-2xl p-4 md:p-6 transition-all w-full ${
                         plano.destaque
-                          ? 'border-[#FACC15] shadow-lg shadow-yellow-400/10'
+                          ? 'border-[#FACC15] shadow-[0_0_40px_-10px_rgba(250,204,21,0.6)] ring-4 ring-[#FACC15]/20 scale-105'
                           : isCurrentPlan
                             ? 'border-green-400'
                             : 'border-neutral-200 hover:border-neutral-300'
@@ -1010,9 +1073,9 @@ export default function PainelInstrutorPageClient() {
                       </ul>
 
                       <button
-                        onClick={() => handleAssinar(plano.tipo)}
-                        disabled={isCurrentPlan || planoSelecionado === plano.tipo}
-                        className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
+                        onClick={() => handleAssinar()}
+                        disabled={isCurrentPlan}
+                        className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                           isCurrentPlan
                             ? 'bg-green-50 text-green-700 border border-green-200 cursor-default'
                             : plano.destaque
@@ -1020,11 +1083,40 @@ export default function PainelInstrutorPageClient() {
                               : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                         } disabled:opacity-50`}
                       >
-                        {isCurrentPlan ? 'Plano Atual' : planoSelecionado === plano.tipo ? 'Processando...' : 'Assinar'}
+                        {isCurrentPlan ? 'Plano Atual' : (
+                          <>
+                            <MessageSquare size={16} />
+                            Continuar no WhatsApp
+                          </>
+                        )}
                       </button>
                     </div>
                   )
                 })}
+              </div>
+
+              {/* Área de Resgate de Código */}
+              <div className="max-w-lg mx-auto mt-8 bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
+                <h3 className="font-bold text-neutral-800 mb-2 flex items-center gap-2">
+                  <Crown size={18} className="text-[#FACC15]" /> Já tem um código de ativação?
+                </h3>
+                <p className="text-sm text-neutral-500 mb-4">Insira o código fornecido pelo suporte para liberar seu plano.</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={codigoAtivacao}
+                    onChange={(e) => setCodigoAtivacao(e.target.value)}
+                    placeholder="Ex: VOLTZ-XXXX-XXXX"
+                    className="flex-1 bg-white border border-neutral-300 rounded-xl px-4 py-2 text-sm uppercase focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20"
+                  />
+                  <button
+                    onClick={handleResgatarCodigo}
+                    disabled={resgatandoCodigo || !codigoAtivacao.trim()}
+                    className="bg-neutral-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                  >
+                    {resgatandoCodigo ? 'Aguarde...' : 'Resgatar'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

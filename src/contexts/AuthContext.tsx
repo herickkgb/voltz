@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getInstrutorPorUserId } from '@/lib/db'
+import { getInstrutorPorUserId, atualizarUltimoLogin } from '@/lib/db'
 import type { Instrutor } from '@/types'
 
 type UserRole = 'instrutor' | 'admin'
@@ -42,6 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const instrutor = await getInstrutorPorUserId(userId)
+    if (instrutor) {
+      atualizarUltimoLogin(instrutor.id).catch(console.error)
+    }
+    
     return {
       id: userId,
       nome: instrutor?.nome || nome,

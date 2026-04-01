@@ -45,6 +45,7 @@ export interface Instrutor {
   status: StatusInstrutor
   motivo_recusa?: string
   plano: PlanoTipo
+  plano_expira_em?: string
   slug: string
   created_at: string
   documentos: Documento[]
@@ -54,6 +55,8 @@ export interface Instrutor {
   avaliacoes: Avaliacao[]
   contatos: Contato[]
   visualizacoes: number
+  whatsapp_clicks?: number
+  ultimo_login?: string
 }
 
 export interface Localizacao {
@@ -117,4 +120,15 @@ export interface FiltrosBusca {
   anosExperienciaMin?: number
   genero?: 'masculino' | 'feminino'
   ordenar?: 'proximidade' | 'avaliacao' | 'preco'
+}
+
+export interface CodigoAtivacao {
+  id: string
+  codigo: string
+  dias_validade: number
+  usado: boolean
+  usado_em?: string
+  instrutor_id?: string
+  criado_em: string
+  criado_por?: string
 }

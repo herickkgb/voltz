@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
@@ -23,7 +24,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-14 md:h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo-removebg-preview.png" alt="Buscar Instrutor Logo" className="h-9 md:h-12 w-auto object-contain drop-shadow-sm" />
+            <Image src="/logo-removebg-preview.png" alt="Buscar Instrutor Logo" width={120} height={48} className="h-9 md:h-12 w-auto object-contain drop-shadow-sm" />
           </Link>
 
           {/* Desktop Links */}

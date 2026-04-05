@@ -23,8 +23,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-14 md:h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Buscar Instrutor Logo" className="h-8 md:h-10 w-auto rounded-lg" />
-            <span className="text-xl font-bold text-neutral-900 hidden sm:block">Buscar Instrutor</span>
+            <img src="/logo-removebg-preview.png" alt="Buscar Instrutor Logo" className="h-9 md:h-12 w-auto object-contain drop-shadow-sm" />
           </Link>
 
           {/* Desktop Links */}

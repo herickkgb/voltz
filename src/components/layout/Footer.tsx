@@ -8,7 +8,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-3">
-              <img src="/logo.png" alt="Buscar Instrutor Logo" className="h-8 md:h-10 w-auto rounded-lg grayscale invert brightness-200" style={{ mixBlendMode: 'screen' }} />
+              <img src="/logo-removebg-preview.png" alt="Buscar Instrutor Logo" className="h-8 md:h-12 w-auto object-contain drop-shadow-lg grayscale invert brightness-200" />
               <span className="text-lg md:text-xl font-bold text-[#FACC15]">Buscar Instrutor</span>
             </Link>
             <p className="text-neutral-400 text-xs md:text-sm leading-relaxed">

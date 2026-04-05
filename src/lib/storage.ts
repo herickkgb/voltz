@@ -25,18 +25,9 @@ export async function uploadDocumento(
     return null
   }
 
-  // Documentos são privados — gerar signed URL (válida por 1 ano)
-  const { data: signedData, error: signedError } = await supabase.storage
-    .from('documentos')
-    .createSignedUrl(nomeArquivo, 60 * 60 * 24 * 365)
-
-  if (signedError || !signedData) {
-    console.error('Erro ao gerar URL:', signedError)
-    return null
-  }
-
+  // Armazenamos o path (não a signed URL) — URLs são geradas on-demand com validade curta
   return {
-    url: signedData.signedUrl,
+    url: nomeArquivo,
     nome_arquivo: arquivo.name,
   }
 }
@@ -73,13 +64,19 @@ export async function uploadFoto(
 }
 
 /**
- * Gera URL assinada para visualizar documento privado (admin).
+ * Gera URL assinada para visualizar documento privado.
+ * Aceita path de storage (ex: "userId/cnh_123.pdf") ou signed URL legada (começa com https://).
+ * Validade: 2 horas.
  */
-export async function getDocumentoUrl(path: string): Promise<string | null> {
+export async function getDocumentoUrl(pathOrUrl: string): Promise<string | null> {
+  // Backward-compat: se já é uma signed URL completa, retorna diretamente
+  if (pathOrUrl.startsWith('https://')) {
+    return pathOrUrl
+  }
 
   const { data, error } = await supabase.storage
     .from('documentos')
-    .createSignedUrl(path, 60 * 60) // 1 hora
+    .createSignedUrl(pathOrUrl, 60 * 60 * 2) // 2 horas
 
   if (error || !data) return null
   return data.signedUrl

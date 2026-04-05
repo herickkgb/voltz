@@ -422,13 +422,13 @@ export default function PainelInstrutorPageClient() {
           {/* Banner de Expiração / Mensalidade */}
           {instrutor.status === 'aprovado' && (
             isExpirado ? (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6">
+              <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 mb-6 animate-pulse-once">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={22} />
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-bold text-red-800 mb-1">Assinatura Expirada</h3>
                     <p className="text-red-700 text-sm leading-relaxed mb-3">
-                      Seu perfil <strong>NÃO</strong> está aparecendo nas buscas devido à falta de pagamento. Renove sua assinatura para voltar a receber alunos da sua região.
+                      Seu perfil <strong>NÃO</strong> está aparecendo nas buscas. Renove sua assinatura para voltar a receber alunos da sua região.
                     </p>
                     <button
                       onClick={() => setTab('planos')}
@@ -439,20 +439,37 @@ export default function PainelInstrutorPageClient() {
                   </div>
                 </div>
               </div>
+            ) : diasRestantes <= 7 ? (
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={22} />
+                    <div>
+                      <h3 className="font-bold text-amber-800 mb-1">
+                        {diasRestantes === 0 ? 'Assinatura vence hoje!' : `Assinatura vence em ${diasRestantes} dia${diasRestantes !== 1 ? 's' : ''}!`}
+                      </h3>
+                      <p className="text-amber-700 text-sm leading-relaxed">
+                        Renove agora para não perder visibilidade nas buscas e continuar recebendo contatos de alunos.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setTab('planos')}
+                    className="flex-shrink-0 inline-flex items-center gap-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-600 transition-colors"
+                  >
+                    <Crown size={14} /> Renovar
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="text-green-600" size={20} />
                   <div>
                     <p className="text-green-800 font-bold text-sm">Perfil Ativo nas Buscas</p>
-                    <p className="text-green-700 text-xs">Sua assinatura vence em {diasRestantes} dias.</p>
+                    <p className="text-green-700 text-xs">Assinatura válida por mais {diasRestantes} dias.</p>
                   </div>
                 </div>
-                {diasRestantes <= 5 && (
-                  <button onClick={() => setTab('planos')} className="text-xs font-bold text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors">
-                    Renovar
-                  </button>
-                )}
               </div>
             )
           )}

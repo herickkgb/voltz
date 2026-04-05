@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useCallback } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -11,16 +11,61 @@ import { SkeletonCard } from '@/components/shared/SkeletonCard'
 import { WhatsAppButton } from '@/components/shared/WhatsAppButton'
 import { useInstrutores } from '@/hooks/useInstrutores'
 import { getMediaAvaliacao } from '@/lib/db'
-import { MapPin, Car, Clock, Users, SlidersHorizontal, X } from 'lucide-react'
+import { MapPin, Car, Clock, Users, SlidersHorizontal, X, Scale } from 'lucide-react'
+import type { FiltrosBusca } from '@/types'
 
-export default function BuscarPageClient() {
+interface Props {
+  cidadePreset?: string
+}
+
+export default function BuscarPageClient({ cidadePreset }: Props) {
   const searchParams = useSearchParams()
-  const cidadeInicial = searchParams.get('cidade') || ''
+  const router = useRouter()
   const [mostrarFiltros, setMostrarFiltros] = useState(false)
+  const [comparando, setComparando] = useState<string[]>([])
 
-  const { instrutores, loading, filtros, setFiltros } = useInstrutores({
-    cidade: cidadeInicial,
-  })
+  // Ler filtros iniciais da URL
+  const getFiltrosFromURL = useCallback((): FiltrosBusca => {
+    const categorias = searchParams.get('categorias')?.split(',').filter(Boolean)
+    const genero = searchParams.get('genero') as 'masculino' | 'feminino' | undefined
+    return {
+      cidade: cidadePreset || searchParams.get('cidade') || '',
+      categorias: categorias?.length ? categorias : undefined,
+      precoMin: searchParams.get('precoMin') ? Number(searchParams.get('precoMin')) : undefined,
+      precoMax: searchParams.get('precoMax') ? Number(searchParams.get('precoMax')) : undefined,
+      anosExperienciaMin: searchParams.get('exp') ? Number(searchParams.get('exp')) : undefined,
+      genero: genero || undefined,
+      aceitaVeiculoCandidato: searchParams.get('veiculo') === '1' ? true : undefined,
+      ordenar: (searchParams.get('ord') as FiltrosBusca['ordenar']) || undefined,
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const { instrutores, loading, filtros, setFiltros } = useInstrutores(getFiltrosFromURL())
+
+  // Sincronizar filtros com a URL ao mudar
+  const handleFiltros = (novos: FiltrosBusca) => {
+    setFiltros(novos)
+    const params = new URLSearchParams()
+    if (novos.cidade) params.set('cidade', novos.cidade)
+    if (novos.categorias?.length) params.set('categorias', novos.categorias.join(','))
+    if (novos.precoMin) params.set('precoMin', String(novos.precoMin))
+    if (novos.precoMax) params.set('precoMax', String(novos.precoMax))
+    if (novos.anosExperienciaMin) params.set('exp', String(novos.anosExperienciaMin))
+    if (novos.genero) params.set('genero', novos.genero)
+    if (novos.aceitaVeiculoCandidato) params.set('veiculo', '1')
+    if (novos.ordenar) params.set('ord', novos.ordenar)
+    const qs = params.toString()
+    router.replace(qs ? `/buscar?${qs}` : '/buscar', { scroll: false })
+  }
+
+  const toggleComparar = (id: string) => {
+    setComparando(prev =>
+      prev.includes(id)
+        ? prev.filter(i => i !== id)
+        : prev.length < 3 ? [...prev, id] : prev
+    )
+  }
 
   const categorias = ['A', 'B', 'C', 'D', 'E']
 
@@ -57,7 +102,7 @@ export default function BuscarPageClient() {
                 type="text"
                 placeholder="Digite a cidade... ex: Belo Horizonte"
                 value={filtros.cidade || ''}
-                onChange={(e) => setFiltros({ ...filtros, cidade: e.target.value })}
+                onChange={(e) => handleFiltros({ ...filtros, cidade: e.target.value })}
                 className="w-full bg-white border border-neutral-200 rounded-xl pl-10 md:pl-12 pr-4 py-2.5 md:py-3.5 text-[16px] md:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/20 transition-all shadow-sm appearance-none"
               />
             </div>
@@ -86,7 +131,7 @@ export default function BuscarPageClient() {
                 <h3 className="font-bold text-lg">Filtros</h3>
                 <button
                   onClick={() => {
-                    setFiltros({ cidade: filtros.cidade })
+                    handleFiltros({ cidade: filtros.cidade })
                   }}
                   className="text-neutral-400 text-sm hover:text-neutral-900 transition-colors"
                 >
@@ -106,7 +151,7 @@ export default function BuscarPageClient() {
                         const updated = current.includes(cat)
                           ? current.filter((c) => c !== cat)
                           : [...current, cat]
-                        setFiltros({ ...filtros, categorias: updated.length ? updated : undefined })
+                        handleFiltros({ ...filtros, categorias: updated.length ? updated : undefined })
                       }}
                       className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                         filtros.categorias?.includes(cat)
@@ -128,7 +173,7 @@ export default function BuscarPageClient() {
                     type="number"
                     placeholder="Ex: 50"
                     value={filtros.precoMin || ''}
-                    onChange={(e) => setFiltros({ ...filtros, precoMin: Number(e.target.value) || undefined })}
+                    onChange={(e) => handleFiltros({ ...filtros, precoMin: Number(e.target.value) || undefined })}
                     className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 text-[16px] md:text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] transition-all appearance-none"
                   />
                 </div>
@@ -138,7 +183,7 @@ export default function BuscarPageClient() {
                     type="number"
                     placeholder="Ex: 150"
                     value={filtros.precoMax || ''}
-                    onChange={(e) => setFiltros({ ...filtros, precoMax: Number(e.target.value) || undefined })}
+                    onChange={(e) => handleFiltros({ ...filtros, precoMax: Number(e.target.value) || undefined })}
                     className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-neutral-900 text-[16px] md:text-sm placeholder:text-neutral-400 focus:outline-none focus:border-[#FACC15] transition-all appearance-none"
                   />
                 </div>
@@ -150,7 +195,7 @@ export default function BuscarPageClient() {
                 <select
                   value={filtros.anosExperienciaMin || ''}
                   onChange={(e) =>
-                    setFiltros({ ...filtros, anosExperienciaMin: Number(e.target.value) || undefined })
+                    handleFiltros({ ...filtros, anosExperienciaMin: Number(e.target.value) || undefined })
                   }
                   className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-[16px] md:text-sm text-neutral-900 focus:outline-none focus:border-[#FACC15] transition-all appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNhMGEwYTAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSIvPjwvc3ZnPg==')] bg-[length:16px] bg-[position:calc(100%-12px)_center] bg-no-repeat pr-10"
                 >
@@ -173,7 +218,7 @@ export default function BuscarPageClient() {
                   ].map((opt) => (
                     <button
                       key={opt.label}
-                      onClick={() => setFiltros({ ...filtros, genero: opt.value })}
+                      onClick={() => handleFiltros({ ...filtros, genero: opt.value })}
                       className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                         filtros.genero === opt.value
                           ? 'bg-[#FACC15] text-neutral-900 shadow-sm'
@@ -191,7 +236,7 @@ export default function BuscarPageClient() {
                 <input
                   type="checkbox"
                   checked={filtros.aceitaVeiculoCandidato || false}
-                  onChange={(e) => setFiltros({ ...filtros, aceitaVeiculoCandidato: e.target.checked || undefined })}
+                  onChange={(e) => handleFiltros({ ...filtros, aceitaVeiculoCandidato: e.target.checked || undefined })}
                   className="w-5 h-5 rounded border-neutral-300 text-[#FACC15] focus:ring-[#FACC15]/20"
                 />
                 <span className="text-sm text-neutral-700">Aceita veículo do candidato</span>
@@ -203,10 +248,7 @@ export default function BuscarPageClient() {
                 <select
                   value={filtros.ordenar || ''}
                   onChange={(e) =>
-                    setFiltros({
-                      ...filtros,
-                      ordenar: (e.target.value as 'avaliacao' | 'preco') || undefined,
-                    })
+                    handleFiltros({ ...filtros, ordenar: (e.target.value as 'avaliacao' | 'preco') || undefined })
                   }
                   className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-2.5 text-[16px] md:text-sm text-neutral-900 focus:outline-none focus:border-[#FACC15] transition-all appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNhMGEwYTAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSIvPjwvc3ZnPg==')] bg-[length:16px] bg-[position:calc(100%-12px)_center] bg-no-repeat pr-10"
                 >
@@ -226,32 +268,32 @@ export default function BuscarPageClient() {
                   Categoria {cat}
                   <button onClick={() => {
                     const updated = filtros.categorias!.filter(c => c !== cat)
-                    setFiltros({ ...filtros, categorias: updated.length ? updated : undefined })
+                    handleFiltros({ ...filtros, categorias: updated.length ? updated : undefined })
                   }}><X size={12} /></button>
                 </span>
               ))}
               {filtros.genero && (
                 <span className="bg-[#FACC15]/15 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1">
                   {filtros.genero === 'masculino' ? 'Homem' : 'Mulher'}
-                  <button onClick={() => setFiltros({ ...filtros, genero: undefined })}><X size={12} /></button>
+                  <button onClick={() => handleFiltros({ ...filtros, genero: undefined })}><X size={12} /></button>
                 </span>
               )}
               {filtros.anosExperienciaMin && (
                 <span className="bg-[#FACC15]/15 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1">
                   {filtros.anosExperienciaMin}+ anos
-                  <button onClick={() => setFiltros({ ...filtros, anosExperienciaMin: undefined })}><X size={12} /></button>
+                  <button onClick={() => handleFiltros({ ...filtros, anosExperienciaMin: undefined })}><X size={12} /></button>
                 </span>
               )}
               {filtros.precoMax && (
                 <span className="bg-[#FACC15]/15 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1">
                   Até R$ {filtros.precoMax}
-                  <button onClick={() => setFiltros({ ...filtros, precoMax: undefined })}><X size={12} /></button>
+                  <button onClick={() => handleFiltros({ ...filtros, precoMax: undefined })}><X size={12} /></button>
                 </span>
               )}
               {filtros.aceitaVeiculoCandidato && (
                 <span className="bg-[#FACC15]/15 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1">
                   Aceita seu veículo
-                  <button onClick={() => setFiltros({ ...filtros, aceitaVeiculoCandidato: undefined })}><X size={12} /></button>
+                  <button onClick={() => handleFiltros({ ...filtros, aceitaVeiculoCandidato: undefined })}><X size={12} /></button>
                 </span>
               )}
             </div>
@@ -272,7 +314,7 @@ export default function BuscarPageClient() {
                 Tente alterar os filtros ou buscar em outra cidade.
               </p>
               <button
-                onClick={() => setFiltros({})}
+                onClick={() => handleFiltros({})}
                 className="border-2 border-neutral-900 text-neutral-900 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-neutral-900 hover:text-white transition-all"
               >
                 Limpar busca
@@ -344,6 +386,17 @@ export default function BuscarPageClient() {
                         >
                           Ver perfil
                         </Link>
+                        <button
+                          onClick={() => toggleComparar(inst.id)}
+                          title="Adicionar à comparação"
+                          className={`px-2 py-2 md:px-3 rounded-lg md:rounded-xl text-xs font-semibold border transition-colors ${
+                            comparando.includes(inst.id)
+                              ? 'bg-[#FACC15] border-[#FACC15] text-neutral-900'
+                              : 'border-neutral-200 text-neutral-500 hover:border-[#FACC15]'
+                          }`}
+                        >
+                          <Scale size={15} />
+                        </button>
                         <WhatsAppButton instrutor={inst} variant="icon" />
                       </div>
                     </div>
@@ -354,6 +407,28 @@ export default function BuscarPageClient() {
           )}
         </div>
       </div>
+
+      {/* Barra flutuante de comparação */}
+      {comparando.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-neutral-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+          <Scale size={18} className="text-[#FACC15]" />
+          <span className="text-sm font-semibold">{comparando.length} instrutor{comparando.length !== 1 ? 'es' : ''} selecionado{comparando.length !== 1 ? 's' : ''}</span>
+          {comparando.length >= 2 && (
+            <Link
+              href={`/comparar?ids=${comparando.join(',')}`}
+              className="bg-[#FACC15] text-neutral-900 px-4 py-1.5 rounded-xl text-sm font-bold hover:bg-[#EAB308] transition-colors"
+            >
+              Comparar
+            </Link>
+          )}
+          <button
+            onClick={() => setComparando([])}
+            className="text-neutral-400 hover:text-white transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       <Footer />
     </div>

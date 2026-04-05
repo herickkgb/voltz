@@ -7,6 +7,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
+import { checkRateLimit, recordFailedAttempt, clearRateLimit, formatWaitTime } from '@/lib/rateLimit'
 
 export default function LoginPageClient() {
   const [email, setEmail] = useState('')
@@ -25,15 +26,22 @@ export default function LoginPageClient() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     if (isRecuperandoSenha) {
       if (!email) {
         toast.error('Preencha o e-mail para recuperar a senha')
+        return
+      }
+      const rl = checkRateLimit(`recover:${email}`)
+      if (!rl.allowed) {
+        toast.error(`Muitas tentativas. Aguarde ${formatWaitTime(rl.waitSeconds!)} para tentar novamente.`)
         return
       }
       const resultado = await recuperarSenha(email)
       if (resultado.success) {
         toast.success('E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.')
       } else {
+        recordFailedAttempt(`recover:${email}`)
         toast.error(resultado.error || 'Erro ao tentar recuperar a senha')
       }
       return
@@ -44,16 +52,24 @@ export default function LoginPageClient() {
       return
     }
 
+    const rl = checkRateLimit(`login:${email}`)
+    if (!rl.allowed) {
+      toast.error(`Conta temporariamente bloqueada. Aguarde ${formatWaitTime(rl.waitSeconds!)} para tentar novamente.`)
+      return
+    }
+
     const resultado = await login(email, senha)
     if (resultado.success) {
+      clearRateLimit(`login:${email}`)
       toast.success('Login realizado com sucesso!')
-      if (email === 'admin@buscarinstrutor.com.br') {
-        router.push('/admin')
-      } else {
-        router.push('/painel')
-      }
+      // Redirect é gerenciado pelo useEffect acima (isAdmin detectado via user_metadata)
     } else {
-      toast.error(resultado.error || 'E-mail ou senha inválidos')
+      const { locked, attemptsLeft } = recordFailedAttempt(`login:${email}`)
+      if (locked) {
+        toast.error('Muitas tentativas incorretas. Conta bloqueada por 15 minutos.')
+      } else {
+        toast.error(`${resultado.error || 'E-mail ou senha inválidos'} (${attemptsLeft} tentativa${attemptsLeft !== 1 ? 's' : ''} restante${attemptsLeft !== 1 ? 's' : ''})`)
+      }
     }
   }
 

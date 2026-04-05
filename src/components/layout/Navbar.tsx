@@ -2,14 +2,30 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { LogOut, User, Shield } from 'lucide-react'
+import { LogOut, User, Shield, Sun, Moon, BookOpen } from 'lucide-react'
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(false)
   const { user, isReady, isAdmin, isInstrutor, logout } = useAuth()
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme')
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isDark = saved ? saved === 'dark' : prefersDark
+    setDarkMode(isDark)
+    document.documentElement.classList.toggle('dark', isDark)
+  }, [])
+
+  const toggleDark = () => {
+    const next = !darkMode
+    setDarkMode(next)
+    document.documentElement.classList.toggle('dark', next)
+    localStorage.setItem('theme', next ? 'dark' : 'light')
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -51,6 +67,16 @@ export function Navbar() {
 
           {/* Desktop Buttons */}
           <div className="hidden md:flex items-center gap-3">
+            <Link href="/blog" className="text-neutral-500 hover:text-neutral-900 transition-colors text-sm font-medium flex items-center gap-1">
+              <BookOpen size={15} /> Blog
+            </Link>
+            <button
+              onClick={toggleDark}
+              aria-label="Alternar tema"
+              className="p-2 rounded-lg text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             {isReady && user ? (
               <>
                 {isAdmin && (
@@ -158,6 +184,20 @@ export function Navbar() {
               >
                 Para Instrutores
               </Link>
+              <Link
+                href="/blog"
+                onClick={() => setMobileOpen(false)}
+                className="text-neutral-500 hover:text-neutral-900 transition-colors text-lg font-medium flex items-center gap-2"
+              >
+                <BookOpen size={20} /> Blog
+              </Link>
+              <button
+                onClick={() => { toggleDark(); setMobileOpen(false) }}
+                className="flex items-center gap-2 text-neutral-500 hover:text-neutral-900 transition-colors text-lg font-medium text-left"
+              >
+                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                {darkMode ? 'Modo Claro' : 'Modo Escuro'}
+              </button>
               <hr className="border-neutral-200" />
 
               {isReady && user ? (

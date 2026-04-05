@@ -7,6 +7,22 @@ import type { Instrutor } from '@/types'
 
 type UserRole = 'instrutor' | 'admin'
 
+// Configura admin via env var — não hardcode email no código-fonte.
+// Defina NEXT_PUBLIC_ADMIN_EMAIL no .env.local (opcional; o método principal é user_metadata.role = 'admin').
+const ADMIN_EMAIL_ENV = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
+function resolveRole(meta: Record<string, unknown>, email: string): UserRole {
+  if (meta.role === 'admin') return 'admin'
+  if (ADMIN_EMAIL_ENV && email === ADMIN_EMAIL_ENV) return 'admin'
+  return 'instrutor'
+}
+
+function resolveNome(meta: Record<string, unknown>, email: string, role: UserRole): string {
+  if (meta.nome) return meta.nome as string
+  if (role === 'admin') return 'Administrador'
+  return email.split('@')[0]
+}
+
 interface AuthUser {
   id: string
   nome: string
@@ -63,9 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         const meta = session.user.user_metadata || {}
-        const isEmailAdmin = session.user.email === 'admin@buscarinstrutor.com.br'
-        const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
-        const nome = meta.nome || (isEmailAdmin ? 'Administrador' : session.user.email?.split('@')[0]) || ''
+        const role = resolveRole(meta, session.user.email || '')
+        const nome = resolveNome(meta, session.user.email || '', role)
         const authUser = await carregarInstrutor(session.user.id, session.user.email!, nome, role)
         setUser(authUser)
       }
@@ -80,9 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const meta = session.user.user_metadata || {}
-          const isEmailAdmin = session.user.email === 'admin@buscarinstrutor.com.br'
-          const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
-          const nome = meta.nome || (isEmailAdmin ? 'Administrador' : session.user.email?.split('@')[0]) || ''
+          const role = resolveRole(meta, session.user.email || '')
+          const nome = resolveNome(meta, session.user.email || '', role)
           const authUser = await carregarInstrutor(session.user.id, session.user.email!, nome, role)
           setUser(authUser)
         } else if (event === 'SIGNED_OUT') {
@@ -111,9 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data.user) {
       const meta = data.user.user_metadata || {}
-      const isEmailAdmin = data.user.email === 'admin@buscarinstrutor.com.br'
-      const role: UserRole = meta.role === 'admin' || isEmailAdmin ? 'admin' : 'instrutor'
-      const nome = meta.nome || (isEmailAdmin ? 'Administrador' : data.user.email?.split('@')[0]) || ''
+      const role = resolveRole(meta, data.user.email || '')
+      const nome = resolveNome(meta, data.user.email || '', role)
       const authUser = await carregarInstrutor(data.user.id, data.user.email!, nome, role)
       setUser(authUser)
     }
